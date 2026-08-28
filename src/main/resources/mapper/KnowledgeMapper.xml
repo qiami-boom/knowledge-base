@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.kb.mapper.KnowledgeMapper">
+    <!-- 查询所有 -->
+    <select id="findAll" resultType="com.example.kb.entity.Knowledge">
+        SELECT * FROM knowledge ORDER BY created_at DESC
+    </select>
+    <!--根据ID查询 -->
+    <select id="findById" parameterType="Long" resultType="com.example.kb.entity.Knowledge">
+        SELECT * FROM knowledge WHERE id = #{id}
+    </select>
+    <!--新增 -->
+    <insert id="insert" parameterType="com.example.kb.entity.Knowledge"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO knowledge(title,content,source,category,tags,
+                              star_rating,ai_score,personal_note,created_at,updated_at)
+        VALUES (#{title},#{content},#{source},#{category},#{tags},#{starRating},
+               #{aiScore},#{personalNote},#{createdAt},#{updatedAt})
+    </insert>
+    <!--批量新增 -->
+    <insert id="batchInsert" parameterType="java.util.List">
+        INSERT INTO knowledge (title, content, source, category, tags,
+        star_rating, ai_score, personal_note, created_at, updated_at)
+        VALUES
+        <foreach collection="list" item="k" separator=",">
+            (#{k.title}, #{k.content}, #{k.source}, #{k.category}, #{k.tags},
+            #{k.starRating}, #{k.aiScore}, #{k.personalNote}, #{k.createdAt}, #{k.updatedAt})
+        </foreach>
+    </insert>
+    <!--更新-->
+    <update id="update" parameterType="com.example.kb.entity.Knowledge">
+        UPDATE knowledge set title = #{title},content = #{content},source = #{source},
+                             category = #{category},tags = #{tags},star_rating=#{starRating},
+                             ai_score = #{aiScore},personal_note = #{personalNote},updated_at = #{updatedAt}
+        WHERE id = #{id}
+    </update>
+    <!--删除-->
+    <delete id="deleteById" parameterType="Long">
+        DELETE FROM knowledge WHERE id = #{id}
+    </delete>
+</mapper>
