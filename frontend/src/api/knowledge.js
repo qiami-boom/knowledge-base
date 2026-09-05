@@ -29,3 +29,11 @@ export const updateKnowledge = (id, data) => {
 export const deleteKnowledge = (id) => {
     return request.delete(`/knowledges/${id}`)
 }
+// 新增导入接口
+export const importKnowledge = (file) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return request.post('/knowledge/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+    })
+}

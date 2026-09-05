@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getAllKnowledge, addKnowledge } from '../api/knowledge'
+import { getAllKnowledge, addKnowledge ,importKnowledge} from '../api/knowledge'
 import KnowledgeCard from '../components/KnowledgeCard.vue'
 
 const list = ref([])
@@ -8,6 +8,8 @@ const loading = ref(true)
 
 // 新增表单相关
 const showForm = ref(false)   // 控制表单弹窗显示/隐藏
+const fileInput = ref(null)
+const importing = ref(null)
 const form = ref({             // 表单数据
   title: '',
   content: '',
@@ -44,13 +46,46 @@ const handleAdd = async () => {
     alert('新增失败，请检查输入')
   }
 }
+
+const handleImport = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  importing.value = true
+  try {
+    await importKnowledge(file)
+    const res = await getAllKnowledge()
+    list.value = res.data
+    alert('导入成功！')
+  } catch (error) {
+    console.error('导入失败:', error)
+    alert('导入失败：' + (error.response?.data?.error || error.message))
+  } finally {
+    importing.value = false
+    event.target.value = ''
+  }
+}
 </script>
 
 <template>
   <div>
     <!-- 新增按钮 -->
     <div class="toolbar">
+      <button
+          class="import-btn"
+          @click="fileInput.click()"
+          :disabled="importing"
+      >
+        {{ importing ? '导入中...' : '导入记忆' }}
+      </button>
       <button class="add-btn" @click="showForm = true">+ 新增知识</button>
+      <!-- 隐藏的文件选择器：用户看不见，但点击上面的按钮会触发它 -->
+      <input
+          ref="fileInput"
+          type="file"
+          accept=".jsonl"
+          style="display:none"
+          @change="handleImport"
+      />
     </div>
 
     <!-- 列表 -->
@@ -200,5 +235,23 @@ const handleAdd = async () => {
 }
 .save-btn:hover {
   background: #1565c0;
+}
+
+.import-btn {
+  background: #43a047;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-right: 8px;
+}
+.import-btn:hover {
+  background: #2e7d32;
+}
+.import-btn:disabled {
+  background: #aaa;
+  cursor: not-allowed;
 }
 </style>
