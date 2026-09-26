@@ -1,5 +1,6 @@
 package com.example.kb.controller;
 
+import com.example.kb.config.Result;
 import com.example.kb.entity.Knowledge;
 import com.example.kb.service.KnowledgeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,10 @@ public class KnowledgeController {
     public List<Knowledge> getAll(){return knowledgeService.findAll();}
 
     @GetMapping("/{id}")
-    public Knowledge findById(@PathVariable Long id){return knowledgeService.findById(id);}
+    public Result<Knowledge> findById(@PathVariable Long id){
+        Knowledge knowledge = knowledgeService.findById(id);    
+        return Result.success(knowledge);
+    }
 
     @PostMapping
     public Knowledge add(@RequestBody Knowledge knowledge){

@@ -8,8 +8,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -20,16 +20,16 @@ public class AiService {
     @Value("${ai.deepseek.base-url}")
     private String baseUrl;
 
-    @Value("{ai.deepseek.api-key}")
+    @Value("${ai.deepseek.api-key}")
     private String apiKey;
 
-    @Value("{ai.deepseek.model}")
+    @Value("${ai.deepseek.model}")
     private String model;
 
-    @Value("{ai.deepseek.timeout-seconds:30}")
+    @Value("${ai.deepseek.timeout-seconds:30}")
     private int timeoutSeconds;
 
-    //Jackson 解析器
+    //Jackson 解析器，`static final` 表示"这个类的所有实例共享同一个 mapper，且不可被重新赋值"
     private static final ObjectMapper mapper =new ObjectMapper();
 
     // OkHttp 客户端（全局只建一个，每次调用复用）
@@ -82,7 +82,7 @@ public class AiService {
 
             Request request = new Request.Builder()
                     .url(baseUrl + "/chat/completions")
-                    .addHeader("Authorization","Bearer" + apiKey)
+                    .addHeader("Authorization","Bearer " + apiKey)
                     .addHeader("Content-Type","application/json")
                     .post(body)
                     .build();
@@ -151,7 +151,7 @@ private String buildPrompt(Knowledge knowledge) {
             %s
             结果摘要：%s
             """.formatted(
-            knowledge.getTitle(),
+            knowledge.getTitle(), 
             knowledge.getContent() != null ? knowledge.getContent() : "（无知识点记录）",
             knowledge.getPersonalNote() != null ? knowledge.getPersonalNote() : "（无）"
     );

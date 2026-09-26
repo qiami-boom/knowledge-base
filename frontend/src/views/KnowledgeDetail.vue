@@ -49,7 +49,7 @@ const handleDelete = async () => {
       </div>
       <div class="detail-header">
         <span class="category-tag">{{ knowledge.category || '未分类' }}</span>
-        <span class="star">⭐ {{ knowledge.starRating || 0 }}</span>
+        <span class="star">🤖 AI评分: {{ knowledge.aiScore || 0 }} | ⭐ 我的评分: {{ knowledge.starRating || 0 }}</span>
       </div>
       <h2 class="title">{{ knowledge.title }}</h2>
       <div class="meta">

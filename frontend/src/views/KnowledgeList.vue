@@ -7,10 +7,10 @@ const list = ref([])
 const loading = ref(true)
 
 // 新增表单相关
-const showForm = ref(false)   // 控制表单弹窗显示/隐藏
+const showForm = ref(false)
 const fileInput = ref(null)
 const importing = ref(null)
-const form = ref({             // 表单数据
+const form = ref({
   title: '',
   content: '',
   source: 'MANUAL',
@@ -35,10 +35,8 @@ onMounted(async () => {
 const handleAdd = async () => {
   try {
     await addKnowledge(form.value)
-    // 重新加载列表
     const res = await getAllKnowledge()
     list.value = res.data
-    // 清空表单，关闭弹窗
     form.value = { title: '', content: '', source: 'MANUAL', category: '', tags: '', starRating: 0, aiScore: 0, personalNote: '' }
     showForm.value = false
   } catch (error) {
@@ -68,8 +66,9 @@ const handleImport = async (event) => {
 
 <template>
   <div>
-    <!-- 新增按钮 -->
+    <!-- 工具栏：新增为主，导入为辅 -->
     <div class="toolbar">
+      <button class="add-btn" @click="showForm = true">+ 新增知识</button>
       <button
           class="import-btn"
           @click="fileInput.click()"
@@ -77,8 +76,6 @@ const handleImport = async (event) => {
       >
         {{ importing ? '导入中...' : '导入记忆' }}
       </button>
-      <button class="add-btn" @click="showForm = true">+ 新增知识</button>
-      <!-- 隐藏的文件选择器：用户看不见，但点击上面的按钮会触发它 -->
       <input
           ref="fileInput"
           type="file"
@@ -101,15 +98,19 @@ const handleImport = async (event) => {
 
     <!-- 新增表单弹窗 -->
     <div v-if="showForm" class="modal-overlay" @click.self="showForm = false">
-      <div class="modal">
+      <div class="modal modal-large">
         <h2>新增知识</h2>
         <div class="form-group">
           <label>标题 *</label>
           <input v-model="form.title" type="text" placeholder="给这条知识取个标题" />
         </div>
         <div class="form-group">
-          <label>内容</label>
-          <textarea v-model="form.content" placeholder="详细内容，可以是 Markdown" rows="5"></textarea>
+          <label>内容（支持 Markdown）</label>
+          <textarea v-model="form.content" placeholder="完整内容，比如 AI 的回答原文" rows="12"></textarea>
+        </div>
+        <div class="form-group">
+          <label>个人备注</label>
+          <textarea v-model="form.personalNote" placeholder="你自己的理解、感悟、踩坑记录等" rows="3"></textarea>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -119,6 +120,17 @@ const handleImport = async (event) => {
           <div class="form-group">
             <label>标签</label>
             <input v-model="form.tags" type="text" placeholder="逗号分隔，如：Spring,面试" />
+          </div>
+          <div class="form-group">
+            <label>我的评分</label>
+            <select v-model="form.starRating">
+              <option :value="0">未评分</option>
+              <option :value="1">1 星</option>
+              <option :value="2">2 星</option>
+              <option :value="3">3 星</option>
+              <option :value="4">4 星</option>
+              <option :value="5">5 星</option>
+            </select>
           </div>
         </div>
         <div class="form-actions">
@@ -177,6 +189,9 @@ const handleImport = async (event) => {
   max-height: 80vh;
   overflow-y: auto;
 }
+.modal-large {
+  width: 640px;
+}
 .modal h2 {
   margin-bottom: 20px;
   font-size: 20px;
@@ -191,7 +206,8 @@ const handleImport = async (event) => {
   color: #555;
 }
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #ddd;
@@ -200,7 +216,8 @@ const handleImport = async (event) => {
   font-family: inherit;
 }
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
   outline: none;
   border-color: #1976d2;
 }
@@ -238,20 +255,21 @@ const handleImport = async (event) => {
 }
 
 .import-btn {
-  background: #43a047;
-  color: white;
-  border: none;
-  padding: 10px 20px;
+  background: #fff;
+  color: #888;
+  border: 1px solid #ddd;
+  padding: 10px 16px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  margin-right: 8px;
+  font-size: 13px;
+  margin-left: 8px;
 }
 .import-btn:hover {
-  background: #2e7d32;
+  background: #f5f5f5;
+  color: #555;
 }
 .import-btn:disabled {
-  background: #aaa;
+  background: #eee;
   cursor: not-allowed;
 }
 </style>

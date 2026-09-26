@@ -1,6 +1,7 @@
 package com.example.kb.service;
 
 
+import com.example.kb.config.BusinessException;
 import com.example.kb.entity.Knowledge;
 
 import com.example.kb.mapper.KnowledgeMapper;
@@ -18,7 +19,13 @@ public class KnowledgeService {
 
     public List<Knowledge> findAll() {return knowledgeMapper.findAll();}
 
-    public Knowledge findById(Long id){return knowledgeMapper.findById(id);}
+public Knowledge findById (Long id){
+    Knowledge knowledge = knowledgeMapper.findById(id);
+    if(knowledge == null){
+        throw new BusinessException(404,"知识不存在");
+    }
+    return knowledge;
+}
 
     public Knowledge add(Knowledge knowledge){
         knowledge.setCreatedAt(LocalDateTime.now());

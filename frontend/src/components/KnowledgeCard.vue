@@ -2,7 +2,7 @@
   <div class="card" @click="handleClick">
     <div class="card-header">
       <span class="category-tag">{{ knowledge.category || '未分类' }}</span>
-      <span class="star">⭐ {{ knowledge.starRating || 0 }}</span>
+      <span class="star">🤖 AI评分: {{ knowledge.aiScore || 0 }}⭐</span>
     </div>
     <h3 class="title">{{ knowledge.title }}</h3>
     <p class="content-preview">{{ knowledge.content?.substring(0, 100) }}...</p>
