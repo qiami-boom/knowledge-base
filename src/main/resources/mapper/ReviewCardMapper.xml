@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.3.0//EN"
+                 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.kb.review.ReviewCardMapper">
+    <!--新增-->
+    <insert id="insert" parameterType="com.example.kb.review.ReviewCard"
+    useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO review_card(knowledge_id,question,answer,stage,
+                                next_review_at,last_reviewed_at,created_at) 
+        VALUES (#{knowledgeId},#{question},#{answer},#{stage},
+                #{nextReviewAt},#{lastReviewedAt},#{createdAt})
+    </insert>
+    <!--查今日到期卡-->
+    <select id="findDue"  resultType="com.example.kb.review.ReviewCard">
+        SELECT * FROM review_card WHERE next_review_at &lt;= #{now}<!--不能用<=会被识别为新标签开头导致报错，用&lt;转义字符-->
+    </select>
+    <!--按id查知识卡-->
+    <select id="findById" parameterType="Long" resultType="com.example.kb.review.ReviewCard">
+        SELECT * FROM review_card WHERE id=#{id}
+    </select>
+    <!--按知识id查知识卡-->
+    <select id="findByKnowledgeId" parameterType="Long" resultType="com.example.kb.review.ReviewCard">
+        SELECT * FROM review_card WHERE knowledge_id=#{knowledgeId}
+    </select>
+    <!--更新知识卡计划（只更新stage,next_review_at,last_reviewed_at)字段-->
+    <update id="updateSchedule" parameterType="com.example.kb.review.ReviewCard">
+        UPDATE review_card SET stage=#{stage},
+                               next_review_at=#{nextReviewAt},
+                               last_reviewed_at=#{lastReviewedAt}
+        WHERE id=#{id}
+    </update>
+</mapper>

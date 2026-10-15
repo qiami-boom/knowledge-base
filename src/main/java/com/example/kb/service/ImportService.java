@@ -1,7 +1,6 @@
 package com.example.kb.service;
 
 import com.example.kb.entity.Knowledge;
-import com.example.kb.service.KnowledgeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
