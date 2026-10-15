@@ -14,8 +14,8 @@ netstat -ano | findstr ":8081" | findstr "LISTENING" >nul
 if %errorlevel% equ 0 (
     echo [OK] Backend already running on port 8081
 ) else (
-    echo [1/3] Starting backend (Spring Boot)...
-    start "KB-Backend" cmd /k "cd /d %~dp0 && mvnw.cmd spring-boot:run"
+    echo [1/3] Starting backend [Spring Boot]...
+    start "KB-Backend" /D "%~dp0" cmd /k "mvnw.cmd spring-boot:run"
     echo       Backend is starting, please wait 15-30 seconds...
 )
 echo.
@@ -25,10 +25,8 @@ netstat -ano | findstr ":5173" | findstr "LISTENING" >nul
 if %errorlevel% equ 0 (
     echo [OK] Frontend already running on port 5173
 ) else (
-    echo [2/3] Starting frontend (Vite)...
-    cd frontend
-    start "KB-Frontend" cmd /k "npm run dev"
-    cd /d "%~dp0"
+    echo [2/3] Starting frontend [Vite]...
+    start "KB-Frontend" /D "%~dp0frontend" cmd /k "npm run dev"
     echo       Frontend is starting...
 )
 echo.

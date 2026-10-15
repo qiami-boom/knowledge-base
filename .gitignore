@@ -29,5 +29,9 @@ build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
+### 运行时产物（不属于源码，不进版本库）###
+*.db
+*.log
+
 ### VS Code ###
 .vscode/
