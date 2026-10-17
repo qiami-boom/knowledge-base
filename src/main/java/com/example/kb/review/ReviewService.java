@@ -6,6 +6,12 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 
 
+/**
+ * 复习服务 —— 整条复习功能线的编排者（领班）
+ * 串联：ReviewController 调它 → 它读库（findById / findDue）
+ *      → 把当前阶数和自评交给算法（reviewScheduler.next）→ 把结果写回库（updateSchedule）
+ * 职责边界：不写 SQL、不算阶梯天数 —— 换算法或换数据库，本文件一行不改（开闭原则）
+ */
 @Service 
 public class ReviewService {
     
@@ -27,6 +33,7 @@ public class ReviewService {
         if(reviewCard == null){
             throw new BusinessException(404, "复习卡不存在");
         }
+        //把当前阶数和自评交给调度算法，换回新阶段和间隔天数
         ScheduleResult result = reviewScheduler.next(reviewCard.getStage(),quality);
         int nextStage = result.stage();
         int intervalDays = result.intervalDays();
@@ -34,6 +41,7 @@ public class ReviewService {
         LocalDateTime nextReviewAt = now.plusDays(intervalDays);
         reviewCard.setStage(nextStage);
         reviewCard.setNextReviewAt(nextReviewAt);
+        reviewCard.setLastReviewedAt(now);
         reviewCardMapper.updateSchedule(reviewCard);
         return reviewCard;
     }
