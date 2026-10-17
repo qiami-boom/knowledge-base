@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -173,5 +174,102 @@ private String cleanJson(String raw) {
     return s;
 }
 
+    /**
+     * 让 AI 生成一篇笔记的候选标签
+     * @param content
+     * @param maxTags
+     * @return 标签名列表，最多 maxTags 个
+     */
+    public List<String> generateTags(String content, int maxTags) {
+        String prompt = """
+                你是标签推荐专家。给下面的笔记内容生成 %d 个最贴切的中文或英文标签。
+                要求：
+                1. 每个标签是稳定的概念名，1~4 个字/词，不要包含标点和空格
+                2. 不要用 "笔记"、"教程"、"学习" 这类泛化词
+                3. 只返回严格 JSON，不要任何其他文字：
+                {"tags": ["Spring Boot", "依赖注入"]}
 
+                笔记内容：
+                %s
+                """.formatted(maxTags, content);
+        String json = callAI(prompt);
+        if (json == null || json.isBlank()) {
+            return java.util.List.of();
+        }
+        json = cleanJson(json);
+        try {
+            JsonNode root = mapper.readTree(json);
+            JsonNode tags = root.get("tags");
+            if (tags == null || !tags.isArray()) {
+                return java.util.List.of();
+            }
+            java.util.List<String> result = new java.util.ArrayList<>();
+            for (JsonNode node : tags) {
+                String t = node.asText().trim();
+                if (!t.isEmpty()) {
+                    result.add(t);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            System.err.println("[AI标签] 解析失败：" + e.getMessage());
+            return java.util.List.of();
+        }
+    }
+
+    /**
+     * 公共调用：把 prompt 发给 DeepSeek，返回 AI 回复的正文内容
+     * 从 scoreKnowledge 里抽出来的通用 HTTP 逻辑，generateTags / pickMostRelevantTag 复用
+     */
+    private String callAI(String prompt) {
+        try {
+            java.util.Map<String,Object> requestBody = new java.util.HashMap<>();
+            requestBody.put("model", model);
+
+            java.util.List<java.util.Map<String,String>> messages = new java.util.ArrayList<>();
+            java.util.Map<String,String> systemMsg = new java.util.HashMap<>();
+            systemMsg.put("role","system");
+            systemMsg.put("content","你是严谨的专家助手。只输出JSON，不要输出其他文字、解释、markdown代码块标记。");
+            messages.add(systemMsg);
+
+            java.util.Map<String,String> userMsg = new java.util.HashMap<>();
+            userMsg.put("role","user");
+            userMsg.put("content", prompt);
+            messages.add(userMsg);
+
+            requestBody.put("messages", messages);
+            requestBody.put("temperature", 0.1);
+            requestBody.put("response_format", java.util.Map.of("type","json_object"));
+
+            String jsonBody = mapper.writeValueAsString(requestBody);
+
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            RequestBody body = RequestBody.create(jsonBody, JSON);
+            Request request = new Request.Builder()
+                    .url(baseUrl + "/chat/completions")
+                    .addHeader("Authorization","Bearer " + apiKey)
+                    .addHeader("Content-Type","application/json")
+                    .post(body)
+                    .build();
+
+            try (Response response = getOkHttpClient().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "无响应体";
+                    System.err.println("[AI调用] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
+                    return "";
+                }
+                String respBody = response.body() != null ? response.body().string() : "";
+                JsonNode root = mapper.readTree(respBody);
+                JsonNode choices = root.get("choices");
+                if (choices == null || !choices.isArray() || choices.size() == 0) {
+                    System.err.println("[AI调用] 响应缺少 choices 字段：" + respBody);
+                    return "";
+                }
+                return choices.get(0).get("message").get("content").asText();
+            }
+        } catch (Exception e) {
+            System.err.println("[AI调用] 请求失败：" + e.getMessage());
+            return "";
+        }
+    }
 }
