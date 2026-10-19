@@ -1,6 +1,10 @@
 package com.example.kb.service;
 
 import com.example.kb.entity.Knowledge;
+import com.example.kb.review.QuizQuestion;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -16,6 +20,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class AiService {
     //从application,properties读取配置
     @Value("${ai.deepseek.base-url}")
@@ -94,7 +99,7 @@ public class AiService {
             // 先判断 HTTP 状态码，如果请求不成功就返回0并
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "无响应体";
-                System.err.println("[AI评分] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
+                log.warn("[AI评分] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
                 return 0;
             }
 
@@ -105,7 +110,7 @@ public class AiService {
             // 做兼容解析
             JsonNode choices = root.get("choices");
             if (choices == null || !choices.isArray() || choices.size() == 0) {
-                System.err.println("[AI评分] 响应缺少 choices 字段：" + respBody);
+                log.warn("[AI评分] 响应缺少 choices 字段：" + respBody);
                 return 0;
             }
             String content = choices.get(0).get("message").get("content").asText();
@@ -120,11 +125,11 @@ public class AiService {
             return (score >= 1 && score <= 5) ? score : 0;
 
         } catch (IOException e) {
-            System.err.println("[AI评分] 请求失败：" + e.getMessage());
+            log.warn("[AI评分] 请求失败：" + e.getMessage());
             return 0;
         }
     } catch (Exception e) {
-        System.err.println("[AI评分] 整体异常：" + e.getMessage());
+        log.warn("[AI评分] 整体异常：" + e.getMessage());
         return 0;
     }
 }
@@ -212,7 +217,7 @@ private String cleanJson(String raw) {
             }
             return result;
         } catch (Exception e) {
-            System.err.println("[AI标签] 解析失败：" + e.getMessage());
+            log.warn("[AI标签] 解析失败：" + e.getMessage());
             return java.util.List.of();
         }
     }
@@ -255,21 +260,71 @@ private String cleanJson(String raw) {
             try (Response response = getOkHttpClient().newCall(request).execute()) {
                 if (!response.isSuccessful()) {
                     String errorBody = response.body() != null ? response.body().string() : "无响应体";
-                    System.err.println("[AI调用] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
+                    log.warn("[AI调用] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
                     return "";
                 }
                 String respBody = response.body() != null ? response.body().string() : "";
                 JsonNode root = mapper.readTree(respBody);
                 JsonNode choices = root.get("choices");
                 if (choices == null || !choices.isArray() || choices.size() == 0) {
-                    System.err.println("[AI调用] 响应缺少 choices 字段：" + respBody);
+                    log.warn("[AI调用] 响应缺少 choices 字段：" + respBody);
                     return "";
                 }
                 return choices.get(0).get("message").get("content").asText();
             }
         } catch (Exception e) {
-            System.err.println("[AI调用] 请求失败：" + e.getMessage());
+            log.warn("[AI调用] 请求失败：" + e.getMessage());
             return "";
         }
     }
+
+    /**
+     * AI 出题
+     * @param knowledge
+     * @return
+     */
+    public QuizQuestion generateQuizQuestion(Knowledge knowledge) {
+        //构造prompt
+        log.info("开始calldeepseek:{}",knowledge);
+        String prompt = """
+            你是记忆复习教练。根据下面的知识点，出一道能检验记忆的回忆型问题。
+            要求：
+            1. 只出一道问题，不提供选项
+            2. 同时给出参考答案
+            3. 只返回严格 JSON，不要任何其他文字：
+            {"question": "问题", "answer": "参考答案"}
+
+            知识点标题：%s
+            知识点内容：%s
+            个人备注：%s
+            """.formatted(
+                knowledge.getTitle(),
+                knowledge.getContent(),
+                knowledge.getPersonalNote());
+
+        //拿到json
+        String json = callAI(prompt);
+
+        if(json == null || json.isBlank()){
+            return new QuizQuestion("","");
+        }
+
+        json = cleanJson(json);
+        
+        try {
+            return mapper.readValue(json, QuizQuestion.class);
+        } catch (Exception e) {
+            log.warn("[ai]输出失败：{}",json);
+            return new QuizQuestion("","");
+        }
+
+        //todo 感觉这里没搞完
+
+
+    }
+
+
+
+
+
 }
