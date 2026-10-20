@@ -1,6 +1,10 @@
 package com.example.kb.service;
 
 import com.example.kb.entity.Knowledge;
+import com.example.kb.review.QuizQuestion;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import lombok.extern.slf4j.Slf4j;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -12,9 +16,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
 public class AiService {
     //从application,properties读取配置
     @Value("${ai.deepseek.base-url}")
@@ -93,7 +99,7 @@ public class AiService {
             // 先判断 HTTP 状态码，如果请求不成功就返回0并
             if (!response.isSuccessful()) {
                 String errorBody = response.body() != null ? response.body().string() : "无响应体";
-                System.err.println("[AI评分] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
+                log.warn("[AI评分] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
                 return 0;
             }
 
@@ -104,7 +110,7 @@ public class AiService {
             // 做兼容解析
             JsonNode choices = root.get("choices");
             if (choices == null || !choices.isArray() || choices.size() == 0) {
-                System.err.println("[AI评分] 响应缺少 choices 字段：" + respBody);
+                log.warn("[AI评分] 响应缺少 choices 字段：" + respBody);
                 return 0;
             }
             String content = choices.get(0).get("message").get("content").asText();
@@ -119,11 +125,11 @@ public class AiService {
             return (score >= 1 && score <= 5) ? score : 0;
 
         } catch (IOException e) {
-            System.err.println("[AI评分] 请求失败：" + e.getMessage());
+            log.warn("[AI评分] 请求失败：" + e.getMessage());
             return 0;
         }
     } catch (Exception e) {
-        System.err.println("[AI评分] 整体异常：" + e.getMessage());
+        log.warn("[AI评分] 整体异常：" + e.getMessage());
         return 0;
     }
 }
@@ -172,6 +178,153 @@ private String cleanJson(String raw) {
     }
     return s;
 }
+
+    /**
+     * 让 AI 生成一篇笔记的候选标签
+     * @param content
+     * @param maxTags
+     * @return 标签名列表，最多 maxTags 个
+     */
+    public List<String> generateTags(String content, int maxTags) {
+        String prompt = """
+                你是标签推荐专家。给下面的笔记内容生成 %d 个最贴切的中文或英文标签。
+                要求：
+                1. 每个标签是稳定的概念名，1~4 个字/词，不要包含标点和空格
+                2. 不要用 "笔记"、"教程"、"学习" 这类泛化词
+                3. 只返回严格 JSON，不要任何其他文字：
+                {"tags": ["Spring Boot", "依赖注入"]}
+
+                笔记内容：
+                %s
+                """.formatted(maxTags, content);
+        String json = callAI(prompt);
+        if (json == null || json.isBlank()) {
+            return java.util.List.of();
+        }
+        json = cleanJson(json);
+        try {
+            JsonNode root = mapper.readTree(json);
+            JsonNode tags = root.get("tags");
+            if (tags == null || !tags.isArray()) {
+                return java.util.List.of();
+            }
+            java.util.List<String> result = new java.util.ArrayList<>();
+            for (JsonNode node : tags) {
+                String t = node.asText().trim();
+                if (!t.isEmpty()) {
+                    result.add(t);
+                }
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("[AI标签] 解析失败：" + e.getMessage());
+            return java.util.List.of();
+        }
+    }
+
+    /**
+     * 公共调用：把 prompt 发给 DeepSeek，返回 AI 回复的正文内容
+     * 从 scoreKnowledge 里抽出来的通用 HTTP 逻辑，generateTags / pickMostRelevantTag 复用
+     */
+    private String callAI(String prompt) {
+        try {
+            java.util.Map<String,Object> requestBody = new java.util.HashMap<>();
+            requestBody.put("model", model);
+
+            java.util.List<java.util.Map<String,String>> messages = new java.util.ArrayList<>();
+            java.util.Map<String,String> systemMsg = new java.util.HashMap<>();
+            systemMsg.put("role","system");
+            systemMsg.put("content","你是严谨的专家助手。只输出JSON，不要输出其他文字、解释、markdown代码块标记。");
+            messages.add(systemMsg);
+
+            java.util.Map<String,String> userMsg = new java.util.HashMap<>();
+            userMsg.put("role","user");
+            userMsg.put("content", prompt);
+            messages.add(userMsg);
+
+            requestBody.put("messages", messages);
+            requestBody.put("temperature", 0.1);
+            requestBody.put("response_format", java.util.Map.of("type","json_object"));
+
+            String jsonBody = mapper.writeValueAsString(requestBody);
+
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            RequestBody body = RequestBody.create(jsonBody, JSON);
+            Request request = new Request.Builder()
+                    .url(baseUrl + "/chat/completions")
+                    .addHeader("Authorization","Bearer " + apiKey)
+                    .addHeader("Content-Type","application/json")
+                    .post(body)
+                    .build();
+
+            try (Response response = getOkHttpClient().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    String errorBody = response.body() != null ? response.body().string() : "无响应体";
+                    log.warn("[AI调用] DeepSeek 返回错误：HTTP " + response.code() + " " + errorBody);
+                    return "";
+                }
+                String respBody = response.body() != null ? response.body().string() : "";
+                JsonNode root = mapper.readTree(respBody);
+                JsonNode choices = root.get("choices");
+                if (choices == null || !choices.isArray() || choices.size() == 0) {
+                    log.warn("[AI调用] 响应缺少 choices 字段：" + respBody);
+                    return "";
+                }
+                return choices.get(0).get("message").get("content").asText();
+            }
+        } catch (Exception e) {
+            log.warn("[AI调用] 请求失败：" + e.getMessage());
+            return "";
+        }
+    }
+
+    /**
+     * AI 出题
+     * @param knowledge
+     * @return
+     */
+    public QuizQuestion generateQuizQuestion(Knowledge knowledge) {
+        //构造prompt
+        log.info("开始calldeepseek:{}",knowledge);
+        String prompt = """
+            你是记忆复习教练。根据下面的知识点，出一道能检验记忆的回忆型问题。
+            要求：
+            1. 只出一道问题，不提供选项
+            2. 同时给出参考答案
+            3. 只返回严格 JSON，不要任何其他文字：
+            {"question": "问题", "answer": "参考答案"}
+
+            知识点标题：%s
+            知识点内容：%s
+            个人备注：%s
+            """.formatted(
+                knowledge.getTitle(),
+                knowledge.getContent(),
+                knowledge.getPersonalNote());
+
+        //拿到json
+        String json = callAI(prompt);
+
+        if(json == null || json.isBlank()){
+            return new QuizQuestion("","");
+        }
+
+        json = cleanJson(json);
+        
+        try {
+            return mapper.readValue(json, QuizQuestion.class);
+        } catch (Exception e) {
+            log.warn("[ai]输出失败：{}",json);
+            return new QuizQuestion("","");
+        }
+
+        //todo 感觉这里没搞完
+
+
+    }
+
+
+
 
 
 }

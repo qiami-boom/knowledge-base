@@ -9,6 +9,9 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+/**
+ * 知识库知识
+ */
 public class Knowledge {
 
     private Long id;
