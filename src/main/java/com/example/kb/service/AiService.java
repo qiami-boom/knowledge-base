@@ -1,6 +1,7 @@
 package com.example.kb.service;
 
 import com.example.kb.entity.Knowledge;
+import com.example.kb.review.ChoiceQuestion;
 import com.example.kb.review.QuizQuestion;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -318,12 +319,81 @@ private String cleanJson(String raw) {
             return new QuizQuestion("","");
         }
 
-        //todo 感觉这里没搞完
-
-
     }
 
+    /**
+     * 复习出题（选择题版）：根据一条知识点生成一道四选一选择题
+     * @param knowledge
+     * @return
+     */
+    public ChoiceQuestion generateChoiceQuestion(Knowledge knowledge) {
+        log.info("开始调取ai");
+        // 1. 构造 Prompt
+        String prompt = """
+            你是记忆复习教练。根据下面的知识点，出一道四选一的选择题。
+            要求：
+            1. 四个选项，只有一个正确
+            2. 正确选项的下标随机，不要固定（固定放第一个就没意义了）
+            3. 给出解析
+            4. 只返回严格 JSON，不要任何其他文字：
+            {"stem": "题干", "options": ["选项A", "选项B", "选项C", "选项D"], "correctIndex": 2, "explanation": "解析"}
 
+            知识点标题：%s
+            知识点内容：%s
+            个人备注：%s
+            """.formatted(
+                knowledge.getTitle(),
+                knowledge.getContent() != null ? knowledge.getContent() : "（无）",
+                knowledge.getPersonalNote() != null ? knowledge.getPersonalNote() : "（无）");
+
+        // 2. 发请求 + 判空
+        String json = callAI(prompt);
+        if (json == null || json.isBlank()) {
+            return new ChoiceQuestion("", List.of(), -1, "");
+        }
+
+        // 3. 剥 ```json 包裹
+        json = cleanJson(json);
+
+        // 4. 解析：数组自动填进 List，不用手写循环
+        return parseJson(json, ChoiceQuestion.class,
+                "[AI出题-选择题]",
+                new ChoiceQuestion("", List.of(), -1, ""));
+    }
+
+    /**
+     * 判断选择题是否正确
+     * @param choiceQuestion
+     * @param getUserAnswer
+     * @return
+     */
+    public Boolean yesOrNo(ChoiceQuestion choiceQuestion,int getUserAnswer) {
+        if (choiceQuestion.correctIndex() != getUserAnswer){
+            return false;
+        }else{
+            return true;
+        }
+    }
+
+    
+
+
+
+    /**
+     * 统一解析：把 AI 返回的 JSON 转成目标类型；失败打日志 + 返回兜底值
+     * @param json    AI 返回的 JSON 文字
+     * @param type    要转成的类型（传 Xxx.class）
+     * @param logTag  日志前缀，方便区分是哪个方法在解析
+     * @param fallback 解析失败时返回的兜底值
+     */
+    private <T> T parseJson(String json, Class<T> type, String logTag, T fallback) {
+        try {
+            return mapper.readValue(json, type);
+        } catch (Exception e) {
+            log.error("{} 解析失败：{}", logTag, e.getMessage());
+            return fallback;
+        }
+    }
 
 
 
