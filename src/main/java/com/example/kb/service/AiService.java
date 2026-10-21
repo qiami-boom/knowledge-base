@@ -226,6 +226,9 @@ private String cleanJson(String raw) {
     /**
      * 公共调用：把 prompt 发给 DeepSeek，返回 AI 回复的正文内容
      * 从 scoreKnowledge 里抽出来的通用 HTTP 逻辑，generateTags / pickMostRelevantTag 复用
+     *
+     * @param prompt // 提示词
+     * @return String
      */
     private String callAI(String prompt) {
         try {
@@ -281,7 +284,7 @@ private String cleanJson(String raw) {
 
     /**
      * AI 出题
-     * @param knowledge
+     * @param knowledge // 知识
      * @return
      */
     public QuizQuestion generateQuizQuestion(Knowledge knowledge) {
