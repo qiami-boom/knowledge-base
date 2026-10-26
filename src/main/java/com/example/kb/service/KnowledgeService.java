@@ -5,6 +5,7 @@ import com.example.kb.config.BusinessException;
 import com.example.kb.entity.Knowledge;
 
 import com.example.kb.mapper.KnowledgeMapper;
+import com.example.kb.service.dto.KnowledgeRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -27,9 +28,22 @@ public Knowledge findById (Long id){
     return knowledge;
 }
 
-    public Knowledge add(Knowledge knowledge){
-        knowledge.setCreatedAt(LocalDateTime.now());
-        knowledge.setUpdatedAt(LocalDateTime.now());
+    public Knowledge add(KnowledgeRequest request){
+        Knowledge knowledge = new Knowledge();
+
+        knowledge.setTitle(request.title());
+        knowledge.setContent(request.content());
+        knowledge.setSource(
+                request.source() == null || request.source().isBlank() ? "MANUAL" : request.source()
+                //来源判空或无来源字段设置为MANUAL，无问题就设置正确来源
+        );
+        knowledge.setPersonalNote(request.personalNote());
+        knowledge.setAiScore(0);
+
+        LocalDateTime now = LocalDateTime.now();
+        knowledge.setCreatedAt(now);
+        knowledge.setUpdatedAt(now);
+
         knowledgeMapper.insert(knowledge);
         return knowledge;
     }
@@ -40,45 +54,25 @@ public Knowledge findById (Long id){
         }
         knowledgeMapper.batchInsert(knowledges);
     }
-    public Knowledge update(Long id,Knowledge knowledge) {
+    public Knowledge update(Long id,KnowledgeRequest request) {
         Knowledge existing = findById(id);
-        if (existing == null) {
-            return null;
-        }
-        if (knowledge.getTitle() != null) {
-            existing.setTitle(knowledge.getTitle());
-        }
-        if (knowledge.getContent() != null) {
-            existing.setContent(knowledge.getContent());
-        }
-        if (knowledge.getCategory() != null) {
-            existing.setCategory(knowledge.getCategory());
-        }
-        if (knowledge.getSource() != null) {
-            existing.setSource(knowledge.getSource());
-        }
-        if (knowledge.getAiScore() != null) {
-            existing.setAiScore(knowledge.getAiScore());
-        }
-        if (knowledge.getPersonalNote() != null) {
-            existing.setPersonalNote(knowledge.getPersonalNote());
-        }
-        if (knowledge.getStarRating() != null) {
-            existing.setStarRating(knowledge.getStarRating());
-        }
-        if (knowledge.getTags() != null) {
-            existing.setTags(knowledge.getTags());
-        }
+
+        existing.setTitle(request.title());
+        existing.setContent(request.content());
+        existing.setSource(request.source());
+        existing.setCategory(request.category());
+        existing.setTags(request.tags());
+        existing.setStarRating(
+                request.starRating() == null ? 0 : request.starRating()
+        );
+        existing.setPersonalNote(request.personalNote());
         existing.setUpdatedAt(LocalDateTime.now());
+
         knowledgeMapper.update(existing);
         return existing;
     }
-    public Boolean delete(Long id){
-        Knowledge existing = findById(id);
-        if(existing == null){
-            return false;
-        }
+    public void delete(Long id){
+        findById(id);
         knowledgeMapper.deleteById(id);
-        return true;
     }
 }

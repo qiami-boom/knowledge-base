@@ -28,20 +28,24 @@ const cancelEdit = () => {
 const saveEdit = async () => {
   try {
     const id = route.params.id
-    await updateKnowledge(id, editForm.value)   // ① 提交到后端
-    const res = await getKnowledgeById(id)      // ② 重新拉取真实数据
-    knowledge.value = res.data.data             // ③ 写回数据源，页面才会变
-    editing.value = false                      // ④ 退出编辑态
+
+    const updated = await updateKnowledge(id, editForm.value)
+    knowledge.value = updated
+    editing.value = false
   } catch (error) {
     console.error('保存失败:', error)
-    alert('保存失败，请检查后端是否启动')
+
+    const message =
+        error.response?.data?.message ||
+        '保存失败，请稍后重试'
+
+    alert(message)
   }
 }
 onMounted(async () => {
   try {
     const id = route.params.id
-    const res = await getKnowledgeById(id)
-    knowledge.value = res.data.data
+    knowledge.value = await getKnowledgeById(id)
   } catch (error) {
     console.error('获取详情失败:', error)
   } finally {
