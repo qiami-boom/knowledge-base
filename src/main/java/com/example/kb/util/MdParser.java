@@ -3,6 +3,7 @@ package com.example.kb.util;
 import com.example.kb.entity.Knowledge;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -34,7 +35,7 @@ public class MdParser {
     private static final String STATE_USER = "USER";
     private static final String STATE_ASSISTANT = "ASSISTANT";
 
-    public static List<Knowledge> parse(InputStream inputStream) throws Exception {
+    public static List<Knowledge> parse(InputStream inputStream) throws IOException {
         List<Knowledge> list = new ArrayList<>();
 
         String state = STATE_NONE;
