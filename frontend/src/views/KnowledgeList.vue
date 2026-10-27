@@ -23,8 +23,8 @@ const form = ref({
 
 onMounted(async () => {
   try {
-    const res = await getAllKnowledge()
-    list.value = res.data
+    const data = await getAllKnowledge()
+    list.value = data
   } catch (error) {
     console.error('获取列表失败:', error)
   } finally {
@@ -35,8 +35,8 @@ onMounted(async () => {
 const handleAdd = async () => {
   try {
     await addKnowledge(form.value)
-    const res = await getAllKnowledge()
-    list.value = res.data
+    const data = await getAllKnowledge()
+    list.value = data
     form.value = { title: '', content: '', source: 'MANUAL', category: '', tags: '', starRating: 0, aiScore: 0, personalNote: '' }
     showForm.value = false
   } catch (error) {
@@ -48,15 +48,29 @@ const handleAdd = async () => {
 const handleImport = async (event) => {
   const file = event.target.files[0]
   if (!file) return
+
   importing.value = true
+
   try {
-    await importKnowledge(file)
-    const res = await getAllKnowledge()
-    list.value = res.data
-    alert('导入成功！')
+
+    const result = await importKnowledge(file)
+
+    const data = await getAllKnowledge()
+    list.value = data
+
+    alert(
+        `导入完成：共 ${result.total} 条，` +
+        `成功评分 ${result.scoredCount} 条，` +
+        `入库 ${result.importedCount} 条`
+    )
   } catch (error) {
     console.error('导入失败:', error)
-    alert('导入失败：' + (error.response?.data?.error || error.message))
+
+    const message =
+        error.response?.data?.message ||
+        '文件导入失败，请检查文件格式'
+
+    alert(`导入失败：${message}`)
   } finally {
     importing.value = false
     event.target.value = ''
@@ -79,7 +93,7 @@ const handleImport = async (event) => {
       <input
           ref="fileInput"
           type="file"
-          accept=".jsonl"
+          accept=".md,.jsonl"
           style="display:none"
           @change="handleImport"
       />

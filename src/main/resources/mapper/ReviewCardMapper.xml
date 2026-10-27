@@ -2,6 +2,11 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.3.0//EN"
                  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.kb.review.ReviewCardMapper">
+    <!--
+        复习卡 SQL 映射 —— ReviewCardMapper 接口的 SQL 本体
+        namespace 指向接口全名、id 对应方法名，MyBatis 靠这两个把 Java 调用和 SQL 绑起来
+        调用方是 ReviewService；#{xxx} 取 ReviewCard 的属性（驼峰），对应数据库列（下划线）
+    -->
     <!--新增-->
     <insert id="insert" parameterType="com.example.kb.review.ReviewCard"
     useGeneratedKeys="true" keyProperty="id">
