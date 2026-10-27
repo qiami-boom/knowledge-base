@@ -10,7 +10,12 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class FixedLadderScheduler implements ReviewScheduler {
-    
+    /**
+     * 复习阶级
+     * @param currentStage
+     * @param quality
+     * @return
+     */
     @Override
     public ScheduleResult next(int currentStage,RecallQuality quality){
         int[] levels ={1,2,4,7,15,30,60};
