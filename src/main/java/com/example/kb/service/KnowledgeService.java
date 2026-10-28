@@ -1,6 +1,7 @@
 package com.example.kb.service;
 
 
+import com.example.kb.aspect.AutoTimestamp;
 import com.example.kb.config.BusinessException;
 import com.example.kb.entity.Knowledge;
 
@@ -47,13 +48,11 @@ public Knowledge findById (Long id){
         knowledgeMapper.insert(knowledge);
         return knowledge;
     }
+    @AutoTimestamp
     public void batchAdd(List<Knowledge> knowledges){
-        for(Knowledge knowledge : knowledges){
-            knowledge.setCreatedAt(LocalDateTime.now());
-            knowledge.setUpdatedAt(LocalDateTime.now());
-        }
         knowledgeMapper.batchInsert(knowledges);
     }
+
     public Knowledge update(Long id,KnowledgeRequest request) {
         Knowledge existing = findById(id);
 
@@ -71,6 +70,7 @@ public Knowledge findById (Long id){
         knowledgeMapper.update(existing);
         return existing;
     }
+
     public void delete(Long id){
         findById(id);
         knowledgeMapper.deleteById(id);
