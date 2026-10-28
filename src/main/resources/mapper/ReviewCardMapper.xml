@@ -18,6 +18,7 @@
     <!--查今日到期卡-->
     <select id="findDue"  resultType="com.example.kb.review.ReviewCard">
         SELECT * FROM review_card WHERE next_review_at &lt;= #{now}<!--不能用<=会被识别为新标签开头导致报错，用&lt;转义字符-->
+        ORDER BY next_review_at ASC,id ASC
     </select>
     <!--按id查知识卡-->
     <select id="findById" parameterType="Long" resultType="com.example.kb.review.ReviewCard">

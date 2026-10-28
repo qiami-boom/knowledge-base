@@ -1,13 +1,4 @@
-import axios from 'axios'
-
-// 所有请求用同一个 axios 实例，方便统一配置
-const request = axios.create({
-    baseURL: '/api'// 所有接口都以 /api 开头，配合 Vite 代理转发
-})
-
-request.interceptors.response.use(//成功响应拦截器
-    (response) => response.data.data
-)
+import request from '../utils/request'
 // 查全部知识列表
 export const getAllKnowledge = () => {
     return request.get('/knowledges')
