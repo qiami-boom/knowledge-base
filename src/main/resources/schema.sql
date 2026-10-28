@@ -23,7 +23,10 @@ CREATE TABLE IF NOT EXISTS review_card (
     stage            INTEGER NOT NULL DEFAULT 1, -- 当前阶梯阶数 1~7（1天→2→4→7→15→30→60）
     next_review_at   TEXT    NOT NULL,          -- 下次应复习时间（ISO-8601 文本，索引键）
     last_reviewed_at TEXT,                      -- 最近一次复习时间；NULL = 从未复习过
-    created_at       TEXT    NOT NULL           -- 卡片生成时间
+    created_at       TEXT    NOT NULL,           -- 卡片生成时间
+    -- 外键(foreign key):knowledge_id 必须指向一条存在的知识
+    -- ON DELETE CASCADE:主表哪条知识被删时，数据库自动删掉这张卡
+    FOREIGN KEY (knowledge_id) REFERENCES knowledge(id) ON DELETE CASCADE
 );
 
 -- 为最热查询 Q1（查到期）建的索引；IF NOT EXISTS 保证重复启动幂等
