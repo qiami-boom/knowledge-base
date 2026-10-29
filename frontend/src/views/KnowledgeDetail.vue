@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { getKnowledgeById, updateKnowledge ,deleteKnowledge } from '../api/knowledge'
+import { generateCards } from '../api/review'
+import { describeError } from '../utils/error'
 
 const route = useRoute()
 const router = useRouter()
@@ -69,6 +71,29 @@ const handleDelete = async () => {
     alert('删除失败')
   }
 }
+  const generating = ref(false)      // 独立 loading：AI 可能要十几秒
+  const reviewMsg = ref('')          // 提示文案
+  const reviewMsgType = ref('')      // 'ok' | 'error'
+  const hasCards = ref(false)        // 生成后是否显示"去复习"入口
+
+  const handleGenerate = async () => {
+    if (generating.value) return
+    generating.value = true
+    reviewMsg.value = ''
+    try {
+      const cards = await generateCards(route.params.id)
+      hasCards.value = cards.length > 0
+      reviewMsgType.value = 'ok'
+      // 接口不区分"新建"和"已存在"，所以文案保持中性
+      reviewMsg.value = `已准备好 ${cards.length} 张复习卡`
+    } catch (error) {
+      console.error('生成复习卡失败:', error)
+      reviewMsgType.value = 'error'
+      reviewMsg.value = describeError(error, '生成复习卡失败，请稍后重试')
+    } finally {
+      generating.value = false
+    }
+  }
 </script>
 
 <template>
@@ -99,6 +124,16 @@ const handleDelete = async () => {
         <div v-if="knowledge.personalNote" class="personal-note">
           <h4>个人备注</h4>
           <p>{{ knowledge.personalNote }}</p>
+        </div>
+        <div class="review-box">
+          <div class="review-head">
+            <span class="review-label">复习</span>
+            <button class="gen-btn" :disabled="generating" @click="handleGenerate">
+              {{ generating ? '生成中…（AI 出题）' : '生成复习卡' }}
+            </button>
+          </div>
+          <p v-if="reviewMsg" class="review-msg" :class="reviewMsgType">{{ reviewMsg }}</p>
+          <router-link v-if="hasCards" to="/review" class="go-review">去复习 →</router-link>
         </div>
       </template>
 
@@ -298,5 +333,48 @@ const handleDelete = async () => {
 }
 .save-btn:hover {
   background: #1565c0;
+}
+.review-box {
+  margin-top: 24px;
+  padding: 16px;
+  background: #f7fbff;
+  border: 1px solid #e3f0fb;
+  border-radius: 8px;
+}
+.review-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.review-label {
+  color: #1976d2;
+  font-weight: 600;
+}
+.gen-btn {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.gen-btn:disabled {
+  background: #90caf9;
+  cursor: not-allowed;
+}
+.review-msg {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: #2e7d32;
+}
+.review-msg.error {
+  color: #c62828;
+}
+.go-review {
+  display: inline-block;
+  margin-top: 8px;
+  color: #1976d2;
+  font-size: 14px;
 }
 </style>
