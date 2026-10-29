@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { getAllKnowledge, addKnowledge ,importKnowledge} from '../api/knowledge'
 import KnowledgeCard from '../components/KnowledgeCard.vue'
 import { describeError } from '../utils/error'
+import ReviewBanner from '../components/ReviewBanner.vue'
 
 const loadError = ref('')      // 非空 = 列表加载失败
 const list = ref([])
@@ -73,6 +74,9 @@ const handleImport = async (event) => {
 
 <template>
   <div>
+    <!-- 今日复习：首页第一优先动作 -->
+    <ReviewBanner />
+
     <!-- 工具栏：新增为主，导入为辅 -->
     <div class="toolbar">
       <button class="add-btn" @click="showForm = true">+ 新增知识</button>
