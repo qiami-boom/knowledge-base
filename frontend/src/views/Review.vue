@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { getDueCards, submitReview } from '../api/review'
+import { describeError } from '../utils/error'
 
 const cards = ref([])         // 本次复习队列
 const index = ref(0)          // 当前第几张（指针，不删数组）
@@ -14,12 +15,6 @@ const finished = computed(() => !loading.value && !errorMsg.value && index.value
 const progress = computed(() =>
     cards.value.length ? `${Math.min(index.value + 1, cards.value.length)} / ${cards.value.length}` : ''
 )
-
-// 错误分层：没拿到 response = 请求没发出去；拿到了 = 后端回了错误
-const describeError = (e, fallback) => {
-  if (!e.response) return '无法连接后端服务，请确认 8081 已启动'
-  return e.response.data?.message || fallback
-}
 
 const load = async () => {
   loading.value = true
