@@ -10,7 +10,10 @@ CREATE TABLE IF NOT EXISTS knowledge (
                                          ai_score      INTEGER,
                                          personal_note TEXT,
                                          created_at    TEXT NOT NULL,
-                                         updated_at    TEXT NOT NULL
+                                         updated_at    TEXT NOT NULL,
+                                         summary       TEXT,
+                                         status        TEXT NOT NULL DEFAULT 'ACTIVE',
+                                         user_id       INTEGER
 );
 
 -- 复习卡片表：间隔重复（spaced repetition）调度的核心表
@@ -67,4 +70,12 @@ CREATE TABLE IF NOT EXISTS knowledge_tag (
     match_score  REAL,                          -- 这次匹配得几分
     match_layer  TEXT,                          -- EXACT / ALIAS / AI / CREATED
     PRIMARY KEY (knowledge_id, tag_id)
+);
+
+--agent会话笔记，每次和用户聊完存一句“他在学什么、卡在哪、下次从哪继续"
+CREATE TABLE IF NOT EXISTS agent_session_note (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    note        TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL
 );

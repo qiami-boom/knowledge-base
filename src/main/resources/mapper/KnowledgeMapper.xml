@@ -14,19 +14,19 @@
     <!--新增 -->
     <insert id="insert" parameterType="com.example.kb.entity.Knowledge"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO knowledge(title,content,source,category,tags,
+        INSERT INTO knowledge(title,content,source,category,tags,summary,status,user_id,
                               star_rating,ai_score,personal_note,created_at,updated_at)
-        VALUES (#{title},#{content},#{source},#{category},#{tags},#{starRating},
-               #{aiScore},#{personalNote},#{createdAt},#{updatedAt})
+        VALUES (#{title},#{content},#{source},#{category},#{tags},#{summary},#{status},#{userId},
+                #{starRating},#{aiScore},#{personalNote},#{createdAt},#{updatedAt})
     </insert>
     <!--批量新增 -->
     <insert id="batchInsert" parameterType="java.util.List">
-        INSERT INTO knowledge (title, content, source, category, tags,
-        star_rating, ai_score, personal_note, created_at, updated_at)
+        INSERT INTO knowledge (title, content, source, category, tags,summary,status,user_id,
+                                star_rating, ai_score, personal_note, created_at, updated_at)
         VALUES
         <foreach collection="list" item="k" separator=",">
-            (#{k.title}, #{k.content}, #{k.source}, #{k.category}, #{k.tags},
-            #{k.starRating}, #{k.aiScore}, #{k.personalNote}, #{k.createdAt}, #{k.updatedAt})
+            (#{k.title}, #{k.content}, #{k.source}, #{k.category}, #{k.tags}, #{k.summary}, #{k.status},
+             #{k.userId},#{k.starRating}, #{k.aiScore}, #{k.personalNote}, #{k.createdAt}, #{k.updatedAt})
         </foreach>
     </insert>
     <!--更新-->
