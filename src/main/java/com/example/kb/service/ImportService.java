@@ -2,10 +2,10 @@ package com.example.kb.service;
 
 import com.example.kb.config.BusinessException;
 import com.example.kb.entity.Knowledge;
+import com.example.kb.parser.DocumentParser;
+import com.example.kb.parser.ParserRegistry;
 import com.example.kb.service.dto.ImportResult;
 import com.example.kb.service.dto.ScoreResult;
-import com.example.kb.util.JsonlParser;
-import com.example.kb.util.MdParser;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +37,15 @@ public class ImportService {
         int scoredCount = 0;
         List<Knowledge> qualified = new ArrayList<>();
         //设置ai评分，记录ai成功评分知识的数量，设置知识标题，记录大于最低分数阈值的成功被ai入库的价值知识
+
+        String fallbackTitle = filename.substring(0, filename.lastIndexOf('.'));
+        //拿文件名暂时兜底没有标题的知识，用作ai评分标准,后续评分完会被替代
+
         for (Knowledge knowledge : parsed) {
+            if(knowledge.getTitle() == null || knowledge.getTitle().isBlank()){
+                knowledge.setTitle(fallbackTitle);
+            }
+
             ScoreResult result = aiService.scoreKnowledge(knowledge);
             knowledge.setAiScore(result.score());
 
@@ -87,20 +95,17 @@ public class ImportService {
     }
 
     private List<Knowledge> parse(String filename, InputStream inputStream){
-        if(filename == null){
+        if(filename == null || filename.isBlank()){
             throw new BusinessException(400,"缺少文件名");
         }
 
-        String lowerName = filename.toLowerCase();//生成一个小写文件名
+        DocumentParser parser = ParserRegistry.forFilename(filename);
+        if(parser == null){
+            throw new BusinessException(400,"仅支持 .md / .jsonl / .docx 文件");
+        }
 
         try{
-            if(lowerName.endsWith(".md")){
-                return MdParser.parse(inputStream);
-            }
-            if(lowerName.endsWith(".jsonl")){
-                return JsonlParser.parse(inputStream);
-            }
-            throw new BusinessException(400, "仅支持 .md和 .jsonl文件");
+            return parser.parse(inputStream);
         } catch(IOException e){
             //把技术异常转为业务异常，并保留cause
             throw new BusinessException(400,"文件无法解析",e);

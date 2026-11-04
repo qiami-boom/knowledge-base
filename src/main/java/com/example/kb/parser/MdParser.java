@@ -1,4 +1,4 @@
-package com.example.kb.util;
+package com.example.kb.parser;
 
 import com.example.kb.entity.Knowledge;
 

@@ -90,7 +90,7 @@ const handleImport = async (event) => {
       <input
           ref="fileInput"
           type="file"
-          accept=".md,.jsonl"
+          accept=".md,.jsonl,.docx"
           style="display:none"
           @change="handleImport"
       />
