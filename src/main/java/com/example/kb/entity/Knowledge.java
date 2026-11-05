@@ -43,6 +43,8 @@ public class Knowledge implements Timestamped {
 
     private Long userId;//归属用户
 
+    private String batchId;
+
     @Override
     public void stamp(LocalDateTime now) {
         if (createdAt == null) {

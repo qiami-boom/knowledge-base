@@ -3,6 +3,7 @@ package com.example.kb.service;
 import com.example.kb.entity.Knowledge;
 import com.example.kb.review.ChoiceQuestion;
 import com.example.kb.review.QuizQuestion;
+import com.example.kb.service.dto.ExtractItem;
 import com.example.kb.service.dto.RawScore;
 import com.example.kb.service.dto.ScoreResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -19,6 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -88,16 +90,8 @@ public class AiService {
         }
 
         // 两个是非题映射成分数，不再让模型自己填分
-        int score;
-        if (raw.why() && raw.general()) {
-            score = 5;
-        } else if (raw.why()) {
-            score = 4;
-        } else if (raw.general()) {
-            score = 3;
-        } else {
-            score = 2;
-        }
+        int score = ScoreResult.scoreOf(raw.why(),raw.general());
+
         return new ScoreResult(category, score, raw.title(), raw.reason(), raw.why(), raw.general());
     }
 
@@ -460,6 +454,65 @@ private String cleanJson(String raw) {
         }
     }
 
+    public List<ExtractItem> extract(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
+        }
+        String prompt = """
+                你是知识抽取器。从下面这段对话里抽出 0~5 条值得长期保存的知识点。
+                每条输出这五个字段：
+                - title：24个字之内，说清讲了什么，不要照抄原话
+                - content：知识点正文，保留对话里讲清楚的部分
+                - why：这段内容解释了"为什么"吗？（机制、根因、设计取舍、原理）
+                - general：它换到另一个项目、另一门语言也成立吗？
+                - reason：证据类型｜一句话，证据类型只能从 因果链/根因/边界/推导/做法/非知识 里挑
+                
+                规则：
+                1. 同一件事只抽一条，不要重复
+                2. 寒暄、催问、日常生活问题、纯操作步骤都不抽
+                3. 如果这段里没有值得保存的内容，返回 {"items":[]}，不要硬凑
+                
+                输出严格 JSON，不要任何其他文字：
+                {"items":[{"title":"...","content":"...","why":true,"general":false,"reason":"根因｜..."}]}
+                
+                文本：
+                %s
+                """.formatted(text.length() > 15000 ? text.substring(0, 15000) : text);
+        String json = callAI(prompt);  //将ai返回的自由文本转成json形式
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        json = cleanJson(json);
+        try {
+            JsonNode root = mapper.readTree(json);
+            JsonNode items = root.get("items");
+            if (items == null || !items.isArray()) {
+                log.warn("[抽取] 返回结构不对，原始 JSON：{}", json);
+                return List.of();
+            }
+            List<ExtractItem> result = new ArrayList<>();
+
+            for (JsonNode item : items) {
+                ExtractItem e = mapper.convertValue(item, ExtractItem.class);  //把一个`JsonNode` 直接转成指定类型的对象。
+                                                                               // 它内部会把节点再序列化成 JSON 字符串，然后反序列化成`ExtractItem`
+                if (e.title() == null || e.title().isBlank()) {
+                    continue;
+                }
+                if(e.content() == null || e.content().isBlank()){
+                    continue;
+                }
+                if(e.why() == null || e.general() == null){
+                    continue;
+                }
+                result.add(e);
+            }
+            return result;
+
+        }catch(Exception e){
+            log.warn("[抽取] 解析失败：{}", e.getMessage());
+            return List.of();
+        }
+    }
 
 
 }

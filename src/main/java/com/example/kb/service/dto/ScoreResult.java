@@ -7,4 +7,18 @@ public record ScoreResult(String category, int score, String title, String reaso
     public ScoreResult(String category, int score, String title, String reason) {
         this(category, score, title, reason, false, false);
     }
+
+    // 两个是非题映射成分数，不再让模型自己填分
+    public static int scoreOf(boolean why, boolean general){
+        if(why && general){
+            return 5;
+        }
+        if(why){
+            return 4;
+        }
+        if(general){
+            return 3;
+        }
+        return 2;
+    }
 }

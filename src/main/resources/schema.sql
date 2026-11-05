@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS knowledge (
                                          updated_at    TEXT NOT NULL,
                                          summary       TEXT,
                                          status        TEXT NOT NULL DEFAULT 'ACTIVE',
-                                         user_id       INTEGER
+                                         user_id       INTEGER,
+                                         batch_id      TEXT
 );
 
 -- 复习卡片表：间隔重复（spaced repetition）调度的核心表
