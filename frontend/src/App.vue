@@ -1,16 +1,26 @@
 <script setup>
+import { useRoute, useRouter } from 'vue-router'
+
+const route = useRoute()
+const router = useRouter()
+
+const logout = () => {
+  localStorage.removeItem('kb_logged_in')
+  router.replace('/login')
+}
 </script>
 
 <template>
   <div id="app">
-    <header class="app-header">
+    <header v-if="!route.meta.hideHeader" class="app-header">
       <h1>个人知识库</h1>
       <nav class="nav">
         <router-link to="/">知识列表</router-link>
         <router-link to="/review">今日复习</router-link>
+        <a href="#" @click.prevent="logout">退出</a>
       </nav>
     </header>
-    <main class="app-content">
+    <main :class="{ 'app-content': !route.meta.hideHeader }">
       <router-view />
     </main>
   </div>
