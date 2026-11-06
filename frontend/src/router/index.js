@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import KnowledgeList from '../views/KnowledgeList.vue'
 import KnowledgeDetail from '../views/KnowledgeDetail.vue'
 import Review from '../views/Review.vue'
+import AgentChat from '../views/AgentChat.vue'
 const routes = [
     {
         path: '/',
@@ -17,6 +18,11 @@ const routes = [
         path: '/review',
         name: 'review',
         component: Review
+    },
+    {
+        path: '/chat',
+        name: 'chat',
+        component: AgentChat
     }
 ]
 

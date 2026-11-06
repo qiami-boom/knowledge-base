@@ -462,7 +462,8 @@ private String cleanJson(String raw) {
                 你是知识抽取器。从下面这段对话里抽出 0~5 条值得长期保存的知识点。
                 每条输出这五个字段：
                 - title：24个字之内，说清讲了什么，不要照抄原话
-                - content：知识点正文，保留对话里讲清楚的部分
+                - content：知识点正文。把对话里讲清楚的那几段原文照搬过来，不要压缩成摘要,
+                有代码、命令、报错原文就原样贴进来；原文本身很短就照抄，不要为了凑长度扩写
                 - why：这段内容解释了"为什么"吗？（机制、根因、设计取舍、原理）
                 - general：它换到另一个项目、另一门语言也成立吗？
                 - reason：证据类型｜一句话，证据类型只能从 因果链/根因/边界/推导/做法/非知识 里挑
@@ -511,6 +512,45 @@ private String cleanJson(String raw) {
         }catch(Exception e){
             log.warn("[抽取] 解析失败：{}", e.getMessage());
             return List.of();
+        }
+    }
+
+    public record WebPage(String title, String content) {
+    }
+
+    /**
+     * 调 DeepSeek Fetch 接口，把网页抓成 Markdown 正文
+     * @return 抓不到返回 null，由调用方翻译成业务错误
+     */
+    public WebPage fetchUrl(String url) {
+        try {
+            java.util.Map<String, Object> body = new java.util.HashMap<>();
+            body.put("url", url);
+            String jsonBody = mapper.writeValueAsString(body);
+
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            RequestBody rb = RequestBody.create(jsonBody, JSON);
+            Request request = new Request.Builder()
+                    .url(baseUrl + "/v1/tools/fetch")
+                    .addHeader("Authorization", "Bearer " + apiKey)
+                    .post(rb)
+                    .build();
+
+            try (Response response = getOkHttpClient().newCall(request).execute()) {
+                if (!response.isSuccessful()) {
+                    log.warn("[抓取] 失败 HTTP {}，url={}", response.code(), url);
+                    return null;
+                }
+                String respBody = response.body() == null ? "" : response.body().string();
+                JsonNode root = mapper.readTree(respBody);
+                return new WebPage(
+                        root.path("title").asText(""),
+                        root.path("content").asText("")
+                );
+            }
+        } catch (Exception e) {
+            log.warn("[抓取] 异常：{}，url={}", e.getMessage(), url);
+            return null;
         }
     }
 

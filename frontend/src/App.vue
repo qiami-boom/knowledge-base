@@ -6,6 +6,7 @@
     <header class="app-header">
       <h1>个人知识库</h1>
       <nav class="nav">
+        <router-link to="/chat">对话</router-link>
         <router-link to="/">知识列表</router-link>
         <router-link to="/review">今日复习</router-link>
       </nav>
