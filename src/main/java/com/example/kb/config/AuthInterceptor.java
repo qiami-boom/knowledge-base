@@ -26,7 +26,7 @@ public class AuthInterceptor implements HandlerInterceptor {
      * 请求进入 Controller 之前执行
      * @param request  当前请求，用于读 session、写 userId 属性
      * @param response 当前响应（这里用不到，但接口要求保留）
-     * @param handler  即将执行的 Controller 方法
+     * @param handle  即将执行的 Controller 方法
      * @return true 表示放行；抛 401 表示拦截
      * @throws BusinessException 401，未登录或会话已失效
      */

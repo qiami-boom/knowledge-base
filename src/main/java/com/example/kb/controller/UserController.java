@@ -6,7 +6,6 @@ import com.example.kb.service.dto.AgentRuleRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.tomcat.util.digester.RuleSet;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -28,9 +27,10 @@ public class UserController {
      */
     @GetMapping("/agent-rule")
     public Result<String> getAgentRule(@RequestAttribute("userId") Long userId) {
+        // 高频读操作，用 debug 级别，避免把日志刷满
+        log.debug("查询 AI 规则，userId={}", userId);
         return Result.success(authService.findById(userId).agentRule());
     }
-
 
     /**
      * 修改当前用户的 AI 规则
@@ -39,24 +39,11 @@ public class UserController {
      * @return 空数据的成功响应
      */
     @PutMapping("/agent-rule")
-    public Result<String> updateAgentRule(@RequestAttribute("userId") Long userId,
-                                          @Valid @RequestBody AgentRuleRequest request) {
-        authService.updateAgentRule(userId,request.getAgentRule());
+    public Result<Void> updateAgentRule(@RequestAttribute("userId") Long userId,
+                                        @Valid @RequestBody AgentRuleRequest request) {
+        // 写操作属于关键行为，用 info 级别，保证默认配置下可见
+        log.info("修改 AI 规则，userId={}, rule={}", userId, request.getAgentRule());
+        authService.updateAgentRule(userId, request.getAgentRule());
         return Result.success();
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 }
