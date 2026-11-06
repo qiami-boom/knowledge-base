@@ -98,6 +98,15 @@
 			<artifactId>poi-ooxml</artifactId>
 			<version>5.2.5</version>
 		</dependency>
+		<!-- BCrypt 密码加密：只要算法，不要整套 Security 过滤链 -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
+
+
+
+
 	</dependencies>
 
 	<build>

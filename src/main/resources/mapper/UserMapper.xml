@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!--
+    user 表的 SQL 映射。
+    三条硬约束，错一条就报 Invalid bound statement (not found)：
+      1. 文件必须在 resources/mapper/ 下（配置是 classpath:mapper/*.xml）
+      2. namespace 必须是接口全限定名，一字不差
+      3. 每个语句的 id 必须等于接口方法名
+-->
+<mapper namespace="com.example.kb.mapper.UserMapper">
+
+    <!-- 登录 + 注册查重：username 上有唯一索引。显式列字段，不用 SELECT * -->
+    <select id="findByUsername" resultType="com.example.kb.entity.User">
+        SELECT id, username, password_hash, display_name, agent_rule, created_at
+        FROM user
+        WHERE username = #{username}
+    </select>
+
+    <!-- session 只存 id，需要回查完整信息（/me 用） -->
+    <select id="findById" resultType="com.example.kb.entity.User">
+        SELECT id, username, password_hash, display_name, agent_rule, created_at
+        FROM user
+        WHERE id = #{id}
+    </select>
+
+    <!--
+        注册。
+        useGeneratedKeys=true + keyProperty=id：让 SQLite 的自增 id 回填到 User.id，
+        否则注册接口返回给前端的 id 会是 null。
+    -->
+    <insert id="insert" parameterType="com.example.kb.entity.User"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user(username, password_hash, display_name, agent_rule, created_at)
+        VALUES (#{username}, #{passwordHash}, #{displayName}, #{agentRule}, #{createdAt})
+    </insert>
+
+    <!-- 只改 AI 风格这一列；id 来自 session，不信任前端传的 id -->
+    <update id="updateAgentRule">
+        UPDATE user SET agent_rule = #{agentRule} WHERE id = #{id}
+    </update>
+
+</mapper>

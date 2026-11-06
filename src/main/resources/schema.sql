@@ -80,3 +80,16 @@ CREATE TABLE IF NOT EXISTS agent_session_note (
     note        TEXT    NOT NULL,
     created_at  TEXT    NOT NULL
 );
+
+
+-- ============ 用户表：登录 / 数据归属 ============
+CREATE TABLE IF NOT EXISTS user (
+                                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                                    username      TEXT NOT NULL,
+                                    password_hash TEXT NOT NULL,
+                                    display_name  TEXT,
+                                    agent_rule    TEXT,
+                                    created_at    TEXT NOT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uk_user_username ON user(username);
