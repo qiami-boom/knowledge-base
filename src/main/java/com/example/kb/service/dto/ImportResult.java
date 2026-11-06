@@ -4,5 +4,4 @@ public record ImportResult(
     int total,
     int scoredCount,
     int importedCount
-){
-}
+){}
