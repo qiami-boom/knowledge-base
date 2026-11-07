@@ -49,7 +49,7 @@ public class ExtractTool implements AgentTool {
     }
 
     @Override
-    public ToolResult execute(String argumentsJson) {
+    public ToolResult execute(String argumentsJson, Long userId) {
         try{
             JsonNode args = mapper.readTree(argumentsJson);
             String text = args.path("text").asText("");
@@ -58,7 +58,7 @@ public class ExtractTool implements AgentTool {
                 return ToolResult.text("没有收到要抽取的文本。");
             }
 
-            ExtractResult result = extractService.extract(text);
+            ExtractResult result = extractService.extract(text, userId);
             if(result.items().isEmpty()){
                 return ToolResult.text("这段里没抽到值得保存的知识点。");
             }

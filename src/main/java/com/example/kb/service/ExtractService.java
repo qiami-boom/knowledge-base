@@ -25,14 +25,14 @@ public class ExtractService {
     @Autowired
     private KnowledgeService knowledgeService;
 
-    public ExtractResult extract(String text) {
+    public ExtractResult extract(String text,Long userId) {
         List<ExtractItem> items = aiService.extract(text);
         if (items.isEmpty()) {
             return new ExtractResult(null, List.of());
         }
         String batchId = UUID.randomUUID().toString();  //生成UUID识别码,给”一次抽取“盖一个批次章,方便日后按批次操作
         List<Knowledge> drafts = new ArrayList<>();
-        return saveDrafts(toDrafts(items, batchId),batchId);
+        return saveDrafts(toDrafts(items, batchId),batchId,userId);
     }
 
     private List<Knowledge> toDrafts(List<ExtractItem> items, String batchId) {
@@ -50,8 +50,8 @@ public class ExtractService {
         return drafts;
     }
 
-    private ExtractResult saveDrafts(List<Knowledge> drafts, String batchId) {
-        knowledgeService.addDrafts(drafts);
+    private ExtractResult saveDrafts(List<Knowledge> drafts, String batchId,Long userId) {
+        knowledgeService.addDrafts(drafts,userId);
 
         List<ExtractResult.Item> views = new ArrayList<>();
         for (Knowledge knowledge : drafts) {
@@ -67,7 +67,7 @@ public class ExtractService {
     }
 
     /** 网页抓取：正文当一整段文本，直接复用 extract */
-    public ExtractResult extractUrl(String url) {
+    public ExtractResult extractUrl(String url,Long userId) {
         if (url == null || url.isBlank()) {
             throw new BusinessException(400, "网址不能为空");
         }
@@ -75,11 +75,11 @@ public class ExtractService {
         if (page == null || page.content() == null || page.content().isBlank()) {
             throw new BusinessException(400, "这个网址抓不到正文，可能需要登录、或者是图片站");
         }
-        return extract(page.content());
+        return extract(page.content(),userId);
     }
 
     /** 文件：按对应解析器分好条，逐条评分转草稿，不再让 AI 抽一遍 */
-    public ExtractResult extractFile(String filename, InputStream inputStream) {
+    public ExtractResult extractFile(String filename, InputStream inputStream,Long userId) {
         DocumentParser parser = ParserRegistry.forFilename(filename);
         if (parser == null) {
             throw new BusinessException(400, "仅支持 .md / .jsonl / .docx 文件");
@@ -115,6 +115,6 @@ public class ExtractService {
             k.setBatchId(batchId);
             drafts.add(k);
         }
-        return saveDrafts(drafts, batchId);
+        return saveDrafts(drafts, batchId,userId);
     }
 }

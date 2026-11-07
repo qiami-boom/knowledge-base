@@ -9,6 +9,7 @@ import com.example.kb.service.dto.ExtractUrlRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;
 
@@ -20,11 +21,13 @@ public class ExtractController {
     private ExtractService extractService;
 
     @PostMapping
-    public Result<ExtractResult> extract(@RequestBody ExtractRequest request) {
+    public Result<ExtractResult> extract(@RequestBody ExtractRequest request,
+                                         HttpServletRequest httpRequest) {
         if (request == null || request.text() == null || request.text().isBlank()) {
             throw new BusinessException(400, "待抽取的文本不能为空");
         }
-        return Result.success(extractService.extract(request.text()));
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        return Result.success(extractService.extract(request.text(), userId));
     }
 
     /**
@@ -33,11 +36,13 @@ public class ExtractController {
      * @return
      */
     @PostMapping("/url")
-    public Result<ExtractResult> extractUrl(@RequestBody ExtractUrlRequest request){
+    public Result<ExtractResult> extractUrl(@RequestBody ExtractUrlRequest request,
+                                            HttpServletRequest httpRequest){
         if(request == null || request.url() == null || request.url().isBlank()){
             throw new BusinessException(400, "网址不能为空");
         }
-        return Result.success(extractService.extractUrl(request.url()));
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        return Result.success(extractService.extractUrl(request.url(), userId));
     }
 
     /**
@@ -48,17 +53,20 @@ public class ExtractController {
      * @throws IOException
      */
     @PostMapping("/file")
-    public Result<ExtractResult> extractFile(@RequestParam("file") MultipartFile file) {
-            if (file.isEmpty()) {
-                throw new BusinessException(400, "上传文件不能为空");
-            }
-            try {
-                return Result.success(extractService.extractFile(
-                        file.getOriginalFilename(),  //拿文件名
-                        file.getInputStream()   //拿内容流
-                ));
-            }catch (IOException e){
-                throw new BusinessException(400, "文件读取失败", e);
-            }
+    public Result<ExtractResult> extractFile(@RequestParam("file") MultipartFile file,
+                                             HttpServletRequest httpRequest) {
+        if (file.isEmpty()) {
+            throw new BusinessException(400, "上传文件不能为空");
+        }
+        Long userId = (Long) httpRequest.getAttribute("userId");
+        try {
+            return Result.success(extractService.extractFile(
+                    file.getOriginalFilename(),
+                    file.getInputStream(),
+                    userId
+            ));
+        }catch (IOException e){
+            throw new BusinessException(400, "文件读取失败", e);
+        }
     }
 }

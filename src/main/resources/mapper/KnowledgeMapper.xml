@@ -3,15 +3,21 @@
         PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.kb.mapper.KnowledgeMapper">
-    <!-- 查询所有 -->
+
+    <!-- 当前用户的正式知识列表 -->
     <select id="findAll" resultType="com.example.kb.entity.Knowledge">
-        SELECT * FROM knowledge WHERE status = 'ACTIVE' ORDER BY created_at DESC
+        SELECT * FROM knowledge
+        WHERE status = 'ACTIVE' AND user_id = #{userId}
+        ORDER BY created_at DESC
     </select>
-    <!--根据ID查询 -->
-    <select id="findById" parameterType="Long" resultType="com.example.kb.entity.Knowledge">
-        SELECT * FROM knowledge WHERE id = #{id}
+
+    <!-- 单条：同时按 id 与归属过滤，查不到一律 404 -->
+    <select id="findById" resultType="com.example.kb.entity.Knowledge">
+        SELECT * FROM knowledge
+        WHERE id = #{id} AND user_id = #{userId}
     </select>
-    <!--新增 -->
+
+    <!-- 新增：user_id 由 Service 提前设置 -->
     <insert id="insert" parameterType="com.example.kb.entity.Knowledge"
             useGeneratedKeys="true" keyProperty="id">
         INSERT INTO knowledge(title,content,source,category,tags,summary,status,user_id,batch_id,
@@ -19,7 +25,8 @@
         VALUES (#{title},#{content},#{source},#{category},#{tags},#{summary},#{status},#{userId},#{batchId},
                 #{starRating},#{aiScore},#{personalNote},#{createdAt},#{updatedAt})
     </insert>
-    <!--批量新增 -->
+
+    <!-- 批量新增：userId 取自每个实体 -->
     <insert id="batchInsert" parameterType="java.util.List">
         INSERT INTO knowledge (title, content, source, category, tags,summary,status,user_id,batch_id,
                                 star_rating, ai_score, personal_note, created_at, updated_at)
@@ -29,16 +36,18 @@
              #{k.starRating}, #{k.aiScore}, #{k.personalNote}, #{k.createdAt}, #{k.updatedAt})
         </foreach>
     </insert>
-    <!--更新-->
+
+    <!-- 更新：userId 取自实体（Service 已通过 findById(id,userId) 回填） -->
     <update id="update" parameterType="com.example.kb.entity.Knowledge">
         UPDATE knowledge set title = #{title},content = #{content},source = #{source},
                              category = #{category},tags = #{tags},star_rating=#{starRating},
                              ai_score = #{aiScore},personal_note = #{personalNote},
                              status = #{status},updated_at = #{updatedAt}
-        WHERE id = #{id}
+        WHERE id = #{id} AND user_id = #{userId}
     </update>
-    <!--删除-->
-    <delete id="deleteById" parameterType="Long">
-        DELETE FROM knowledge WHERE id = #{id}
+
+    <!-- 删除：必须带归属，越权删除影响 0 行 -->
+    <delete id="deleteById">
+        DELETE FROM knowledge WHERE id = #{id} AND user_id = #{userId}
     </delete>
 </mapper>
