@@ -75,4 +75,40 @@ public Knowledge findById (Long id){
         findById(id);
         knowledgeMapper.deleteById(id);
     }
+
+    @AutoTimestamp
+    public void addDrafts(List<Knowledge> drafts){
+        for(Knowledge knowledge : drafts){
+            knowledgeMapper.insert(knowledge);
+        }
+    }
+
+    /**
+     * 用户点"入库"后调用。只把 status 从 DRAFT 改成 ACTIVE，不动内容字段。
+     * 已经是 ACTIVE 的不能重复确认，抛 400。
+     * @param id
+     */
+    public void confirmDraft(Long id) {
+        Knowledge knowledge = findById(id);
+        if (!"DRAFT".equals(knowledge.getStatus())) {   //”字符串“.equals()判断字符串与括号里面的东西是否完全相同
+            throw new BusinessException(400, "只有草稿可以确认入库");
+        }
+        knowledge.setStatus("ACTIVE");
+        knowledge.setUpdatedAt(LocalDateTime.now());
+        knowledgeMapper.update(knowledge);
+    }
+
+    /**
+     * 用户点"丢弃"后调用。草稿从未被认可过，直接物理删除，不做软删除。
+     * 已经是 ACTIVE 的不能丢弃，抛 400。
+     */
+    public void discardDraft(Long id) {
+        Knowledge knowledge = findById(id);
+        if (!"DRAFT".equals(knowledge.getStatus())) {
+            throw new BusinessException(400, "只有草稿可以丢弃");
+        }
+        knowledgeMapper.deleteById(id);
+    }
+
+
 }

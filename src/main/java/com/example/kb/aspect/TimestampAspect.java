@@ -1,7 +1,7 @@
 package com.example.kb.aspect;
 
 
-import com.example.kb.entity.Knowledge;
+import com.example.kb.common.Timestamped;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -42,34 +42,24 @@ public class TimestampAspect {
     /**
      * 判断数量，看看里面是不是Knowledge
      * @param arg
-     * @return 需要补的字段的个数
+     * @return 需要补的对象的个数
      */
     private int fill (Object arg) {
-        if (arg instanceof Knowledge k) {
-            return fillOne(k);
+        if (arg instanceof Timestamped t) {
+            t.stamp(LocalDateTime.now());
+            return 1;//处理了一个元素
         }
         if (arg instanceof List<?> list) {
             int n = 0;
             for (Object o : list) {
-                if (o instanceof Knowledge k) n += fillOne(k);
+                if (o instanceof Timestamped t){
+                    t.stamp(LocalDateTime.now());
+                    n++;
+                }
             }
-            return n;
+            return n;//处理了几个元素
         }
-        return 0;
+        return 0;//不是我认识的类型
     }
-
-    /**
-     *  填充时间戳
-     * @param k
-     * @return
-     */
-    private int fillOne(Knowledge k) {
-        LocalDateTime now = LocalDateTime.now();
-        int n = 0;
-        if (k.getCreatedAt() == null) { k.setCreatedAt(now); n++; }
-        if (k.getUpdatedAt() == null) { k.setUpdatedAt(now); n++; }
-        return n;
-    }
-
 
 }

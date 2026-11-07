@@ -92,6 +92,12 @@
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>3.1.1</version>
 		</dependency>
+		<!-- Apache POI：读写 Office 文档，poi-ooxml 处理 .docx / .xlsx -->
+		<dependency>
+			<groupId>org.apache.poi</groupId>
+			<artifactId>poi-ooxml</artifactId>
+			<version>5.2.5</version>
+		</dependency>
 		<!-- BCrypt 密码加密：只要算法，不要整套 Security 过滤链 -->
 		<dependency>
 			<groupId>org.springframework.security</groupId>

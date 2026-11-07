@@ -2,7 +2,10 @@
 import { ref, onMounted } from 'vue'
 import { getAllKnowledge, addKnowledge ,importKnowledge} from '../api/knowledge'
 import KnowledgeCard from '../components/KnowledgeCard.vue'
+import { describeError } from '../utils/error'
+import ReviewBanner from '../components/ReviewBanner.vue'
 
+const loadError = ref('')      // 非空 = 列表加载失败
 const list = ref([])
 const loading = ref(true)
 
@@ -27,6 +30,7 @@ onMounted(async () => {
     list.value = data
   } catch (error) {
     console.error('获取列表失败:', error)
+    loadError.value = describeError(error, '加载知识列表失败')
   } finally {
     loading.value = false
   }
@@ -41,23 +45,18 @@ const handleAdd = async () => {
     showForm.value = false
   } catch (error) {
     console.error('新增失败:', error)
-    alert('新增失败，请检查输入')
+    alert(`新增失败：${describeError(error, '请检查输入后重试')}`)
   }
 }
 
 const handleImport = async (event) => {
   const file = event.target.files[0]
   if (!file) return
-
   importing.value = true
-
   try {
-
     const result = await importKnowledge(file)
-
     const data = await getAllKnowledge()
     list.value = data
-
     alert(
         `导入完成：共 ${result.total} 条，` +
         `成功评分 ${result.scoredCount} 条，` +
@@ -65,12 +64,7 @@ const handleImport = async (event) => {
     )
   } catch (error) {
     console.error('导入失败:', error)
-
-    const message =
-        error.response?.data?.message ||
-        '文件导入失败，请检查文件格式'
-
-    alert(`导入失败：${message}`)
+    alert(`导入失败：${describeError(error, '文件格式不正确')}`)
   } finally {
     importing.value = false
     event.target.value = ''
@@ -80,6 +74,9 @@ const handleImport = async (event) => {
 
 <template>
   <div>
+    <!-- 今日复习：首页第一优先动作 -->
+    <ReviewBanner />
+
     <!-- 工具栏：新增为主，导入为辅 -->
     <div class="toolbar">
       <button class="add-btn" @click="showForm = true">+ 新增知识</button>
@@ -93,7 +90,7 @@ const handleImport = async (event) => {
       <input
           ref="fileInput"
           type="file"
-          accept=".md,.jsonl"
+          accept=".md,.jsonl,.docx"
           style="display:none"
           @change="handleImport"
       />
@@ -101,6 +98,8 @@ const handleImport = async (event) => {
 
     <!-- 列表 -->
     <p v-if="loading">加载中...</p>
+    <p v-if="loading">加载中...</p>
+    <p v-else-if="loadError" class="error-tip">{{ loadError }}</p>
     <p v-else-if="list.length === 0">暂无知识，快去添加吧！</p>
     <div v-else class="card-list">
       <KnowledgeCard
@@ -286,4 +285,5 @@ const handleImport = async (event) => {
   background: #eee;
   cursor: not-allowed;
 }
+.error-tip { color: #c62828; }
 </style>

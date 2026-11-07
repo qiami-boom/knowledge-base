@@ -45,4 +45,16 @@ public class KnowledgeController {
         knowledgeService.delete(id);
         return Result.success();
     }
+
+    @PostMapping("/{id}/confirm")
+    public Result<Void> confirm(@PathVariable Long id) {
+        knowledgeService.confirmDraft(id);
+        return Result.success(null);
+    }
+
+    @PostMapping("/{id}/discard")
+    public Result<Void> discard(@PathVariable Long id) {
+        knowledgeService.discardDraft(id);
+        return Result.success(null);
+    }
 }

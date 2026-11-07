@@ -1,5 +1,6 @@
 package com.example.kb.entity;
 
+import com.example.kb.common.Timestamped;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,7 +13,7 @@ import java.time.LocalDateTime;
 /**
  * 知识库知识
  */
-public class Knowledge {
+public class Knowledge implements Timestamped {
 
     private Long id;
 
@@ -36,4 +37,19 @@ public class Knowledge {
 
     private LocalDateTime updatedAt;//更新时间
 
+    private String summary;//一句话摘要，agent 检索只读它
+
+    private String status = "ACTIVE";//状态:DRAFT 草稿/ACTIVE 生效
+
+    private Long userId;//归属用户
+
+    private String batchId;
+
+    @Override
+    public void stamp(LocalDateTime now) {
+        if (createdAt == null) {
+            createdAt = now;   //解析器已从文件里读到原始时间，不覆盖
+        }
+        updatedAt = now;   //每次写入都刷新
+    }
 }
