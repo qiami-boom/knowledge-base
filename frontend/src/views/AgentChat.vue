@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick, watch, computed } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { confirmDraft, discardDraft, extractByFile, extractByUrl, agentChat } from '../api/agent'
 import { getDueCards, getProgress } from '../api/review'
@@ -18,7 +18,7 @@ const listRef = ref(null)
 const fileInput = ref(null)
 const menuOpen = ref(false)
 
-// 首屏示例：正好对应提交要求里的 3 条演示提示词，评委不用猜能干什么
+// 3 条示例提示词常驻在输入框上方：评委和用户随时能看到能干什么，不随对话历史消失
 const examples = [
   { label: '今天该复习什么？', text: '今天该复习什么？' },
   { label: '搜一下我记过的 SQLite', text: '搜一下我记过的 SQLite 相关问题' },
@@ -27,9 +27,6 @@ const examples = [
     text: '整理这段并告诉我今天该复习什么：Spring 循环依赖是因为两个 Bean 互相注入，构造器注入会在启动时直接失败，字段注入只是把报错推迟到运行时。'
   }
 ]
-
-// 用户还没说过话时才显示（恢复历史记录后就不再出现）
-const showExamples = computed(() => !messages.value.some(m => m.role === 'user'))
 
 // 点示例 → 填进输入框，不自动发送，给用户改的机会
 const fillExample = (text) => {
@@ -102,12 +99,8 @@ const cleanText = (text) => {
       .replace(/`/g, '')
 }
 
-/** 复习进度条宽度：第 N 阶 = N/7；没建卡就是 0（空条） */
-const stagePct = (id) => {
-  const s = progress.value[id]
-  if (!s) return '0%'
-  return Math.round((s / 7) * 100) + '%'
-}
+/** 某条知识复习到第几阶：没建卡就是 0，前端按 7 格渲染 */
+const stageOf = (id) => progress.value[id] || 0
 
 /** 色条颜色按星级分档，一眼看出哪些更值得复习 */
 const barClass = (score) => {
@@ -407,7 +400,7 @@ const extractUrl = async (url) => {
       <button class="btn-ghost" @click="saveCustomRule">保存</button>
     </div>
 
-    <div v-if="showExamples" class="examples">
+    <div class="examples">
       <button
           v-for="ex in examples"
           :key="ex.label"
@@ -460,7 +453,7 @@ const extractUrl = async (url) => {
         <span>我的知识</span>
         <span class="panel-count">{{ knowledge.length }}</span>
       </div>
-      <p class="panel-hint">左侧色条＝AI 评级，右侧进度条＝复习到第几阶（空条＝还没建卡）</p>
+      <p class="panel-hint">左侧色条＝AI 评级，右侧 7 格＝复习到第几阶（全灰＝还没建卡）</p>
       <div class="k-list">
         <div
             v-for="k in knowledge"
@@ -470,8 +463,13 @@ const extractUrl = async (url) => {
         >
           <span class="k-bar" :class="barClass(k.aiScore)"></span>
           <span class="k-title">{{ k.title }}</span>
-          <span class="k-progress" :title="'复习进度 ' + stagePct(k.id)">
-            <span class="k-progress-fill" :style="{ width: stagePct(k.id) }"></span>
+          <span class="k-progress" :title="'复习到第 ' + stageOf(k.id) + ' 阶（共 7 阶）'">
+            <span
+                v-for="n in 7"
+                :key="n"
+                class="k-seg"
+                :class="{ on: n <= stageOf(k.id) }"
+            ></span>
           </span>
           <span class="k-score">{{ k.aiScore }}★</span>
         </div>
@@ -571,19 +569,19 @@ const extractUrl = async (url) => {
   white-space: nowrap;
 }
 .k-progress {
-  width: 40px;
-  height: 4px;
+  width: 56px;
+  height: 5px;
   flex-shrink: 0;
-  background: #e9ecef;
-  border-radius: 2px;
-  overflow: hidden;
+  display: flex;
+  gap: 2px;
 }
-.k-progress-fill {
-  display: block;
-  height: 100%;
-  background: #748ffc;
+.k-seg {
+  flex: 1;
   border-radius: 2px;
-  transition: width 0.3s;
+  background: #e9ecef;
+}
+.k-seg.on {
+  background: #3b6ef5;
 }
 .k-score {
   flex-shrink: 0;
