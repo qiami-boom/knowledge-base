@@ -64,6 +64,16 @@ const startQuiz = async () => {
   errorMsg.value = ''
   try {
     const generated = await getQuiz(cardId)
+    // AI 失败时后端返回的是空题（没有选项、correctIndex=-1）。
+    // 直接进选择题模式会卡在"没有选项也没有下一张"的死局，这里拦住
+    if (!generated
+        || !Array.isArray(generated.options)
+        || generated.options.length < 2
+        || generated.correctIndex < 0
+        || generated.correctIndex >= generated.options.length) {
+      errorMsg.value = '这次没生成出可用的题目，请再试一次'
+      return
+    }
     quizCache.value[cardId] = generated
     quiz.value = generated
     picked.value = -1
@@ -87,6 +97,7 @@ const pick = (i) => {
  */
 const finishQuiz = async () => {
   if (!current.value || !quiz.value || submitting.value) return
+  if (picked.value < 0) return   // 没选就不提交：否则会被当成答错，把卡打回第 1 阶
   submitting.value = true
   errorMsg.value = ''
 

@@ -126,13 +126,6 @@ public class KnowledgeService {
         knowledgeMapper.update(knowledge);
     }
 
-    @AutoTimestamp
-    public void addDrafts(List<Knowledge> drafts){
-        for(Knowledge knowledge : drafts){
-            knowledgeMapper.insert(knowledge);
-        }
-    }
-
     /**
      * 用户点"丢弃"后调用。草稿从未被认可过，直接物理删除，不做软删除。
      * 已经是 ACTIVE 的不能丢弃，抛 400。

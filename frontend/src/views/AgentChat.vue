@@ -146,7 +146,7 @@ onMounted(async () => {
       }
     } catch (e) {
       // 本地存储可能被手动改坏，解析失败就丢掉，不能让页面白屏
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(storageKey)
     }
   }
 
@@ -256,6 +256,8 @@ const confirm = async (draft) => {
   try {
     await confirmDraft(draft.id)
     draft.state = 'confirmed'
+    // 入库后立刻刷新右栏：否则卡片显示"已入库"、右边列表却没有它，看起来像没存进去
+    loadKnowledge()
   } catch (e) {
     console.error('入库失败:', e)
     errorTip.value = describeError(e, '入库失败')
@@ -370,7 +372,7 @@ const extractUrl = async (url) => {
       </div>
 
       <div v-if="sending" class="msg agent">
-        <div class="bubble typing">正在抽取…</div>
+        <div class="bubble typing">正在思考…</div>
       </div>
     </div>
 

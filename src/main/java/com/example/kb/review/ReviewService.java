@@ -107,7 +107,20 @@ public class ReviewService {
             return null;
         }
         Knowledge knowledge = knowledgeService.findById(card.getKnowledgeId(), userId);
-        return aiService.generateChoiceQuestion(knowledge);
+        ChoiceQuestion question = aiService.generateChoiceQuestion(knowledge);
+
+        // AI 失败时 AiService 返回的是空对象（options 为空、correctIndex = -1）。
+        // 这种题一旦吐给前端，页面会停在"没有选项、也没有下一张"的死局；
+        // 更糟的是用户硬提交，correctIndex=-1 会让每张卡都被判"忘了"打回第 1 阶。
+        // 所以在这里拦掉，转成 502 让前端提示重试。
+        if (question == null
+                || question.options() == null
+                || question.options().size() < 2
+                || question.correctIndex() < 0
+                || question.correctIndex() >= question.options().size()) {
+            throw new BusinessException(502, "AI 出题失败，请稍后重试");
+        }
+        return question;
     }
 
     public ReviewCard review(Long cardId, RecallQuality quality, Long userId) {

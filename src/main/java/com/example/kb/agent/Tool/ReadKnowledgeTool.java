@@ -69,6 +69,12 @@ public class ReadKnowledgeTool implements AgentTool {
             // 找不到或不属于当前用户时 findById 抛 404，下面统一转成文本
             Knowledge k = knowledgeService.findById(id, userId);
 
+            // 草稿是"用户还没确认"的内容，不能进 Agent 的读取范围：
+            // 搜索只回 ACTIVE，这里再挡一道，避免模型拿到 id 就把未确认内容当事实讲出去
+            if (!"ACTIVE".equals(k.getStatus())) {
+                return ToolResult.text("这条还是未确认的草稿，要让用户先在对话里点「入库」，确认后才能读全文。");
+            }
+
             StringBuilder sb = new StringBuilder();
             sb.append("标题：").append(k.getTitle()).append("\n");
             if (k.getSummary() != null && !k.getSummary().isBlank()) {
