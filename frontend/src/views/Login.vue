@@ -1,19 +1,38 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { login } from '../api/auth'
+import { login, register } from '../api/auth'
 import { markLoggedIn } from '../utils/authState'
 
 const router = useRouter()
 const route = useRoute()
 
-const form = ref({ username: '', password: '' })
+// mode: 'login' 登录 | 'register' 注册
+const mode = ref('login')
+
+const form = ref({
+  username: '',
+  password: '',
+  confirmPassword: '',
+  displayName: ''
+})
+
 const errorMsg = ref('')
-const errorField = ref('') // 'username' | 'password' | 'both' | ''
+// 'username' | 'password' | 'confirm' | 'displayName' | 'both' | ''
+const errorField = ref('')
 const submitting = ref(false)
 
-// 错误定位：只把真正填错的输入框标红
+/** 错误定位：只把真正填错的输入框标红 */
 const isInvalid = (field) => errorField.value === 'both' || errorField.value === field
+
+/** 切换登录 / 注册：保留用户名，清空密码与错误，避免把上次输入带过去 */
+const switchMode = () => {
+  mode.value = mode.value === 'login' ? 'register' : 'login'
+  form.value.password = ''
+  form.value.confirmPassword = ''
+  errorMsg.value = ''
+  errorField.value = ''
+}
 
 /**
  * 登录成功后的去向：只接受站内相对路径。
@@ -26,39 +45,76 @@ const safeRedirect = () => {
   return target
 }
 
+const fail = (msg, field) => {
+  errorMsg.value = msg
+  errorField.value = field
+}
+
+/**
+ * 提交：前端只做格式校验，账号密码是否合法由后端判定。
+ * 注册成功后自动登录一次，用户不需要再手输一遍密码。
+ */
 const submit = async () => {
   if (submitting.value) return
 
   errorMsg.value = ''
   errorField.value = ''
 
-  if (!form.value.username.trim()) {
-    errorMsg.value = '请输入账号'
-    errorField.value = 'username'
+  const username = form.value.username.trim()
+  const password = form.value.password
+
+  if (!username) {
+    fail('请输入账号', 'username')
     return
   }
 
-  if (!form.value.password) {
-    errorMsg.value = '请输入密码'
-    errorField.value = 'password'
+  if (mode.value === 'register' && !/^[A-Za-z0-9_]{3,20}$/.test(username)) {
+    fail('账号只能是 3-20 位字母、数字、下划线', 'username')
     return
+  }
+
+  if (!password) {
+    fail('请输入密码', 'password')
+    return
+  }
+
+  if (mode.value === 'register') {
+    if (password.length < 8 || password.length > 64) {
+      fail('密码长度必须是 8-64 位', 'password')
+      return
+    }
+    if (password !== form.value.confirmPassword) {
+      fail('两次输入的密码不一致', 'confirm')
+      return
+    }
   }
 
   submitting.value = true
   try {
-    // 真正的校验在后端：前端只负责把账号密码送过去
-    await login({
-      username: form.value.username.trim(),
-      password: form.value.password
-    })
+    if (mode.value === 'register') {
+      await register({
+        username,
+        password,
+        displayName: form.value.displayName.trim() || undefined
+      })
+    }
+
+    await login({ username, password })
     markLoggedIn()
     router.replace(safeRedirect())
   } catch (e) {
-    errorField.value = 'both'
     if (!e.response) {
-      errorMsg.value = '无法连接后端服务，请确认 8081 已启动'
+      fail('无法连接后端服务，请确认 8081 已启动', 'both')
     } else {
-      errorMsg.value = e.response.data?.message || '账号或密码错误，请重试'
+      const msg = e.response.data?.message || '操作失败，请重试'
+      // 根据后端文案把红框定位到对应字段
+      if (msg.includes('用户名') || msg.includes('账号')) {
+        fail(msg, 'username')
+      } else if (msg.includes('密码')) {
+        fail(msg, 'password')
+      } else {
+        fail(msg, 'both')
+      }
     }
   } finally {
     submitting.value = false
@@ -71,8 +127,10 @@ const submit = async () => {
     <div class="login-card">
       <div class="brand">
         <span class="logo" aria-hidden="true">知</span>
-        <h1>个人知识库</h1>
-        <p class="sub">登录后继续整理你的笔记</p>
+        <h1>{{ mode === 'login' ? '个人知识库' : '创建账号' }}</h1>
+        <p class="sub">
+          {{ mode === 'login' ? '登录后继续整理你的笔记' : '注册后自动登录，立刻开始使用' }}
+        </p>
       </div>
 
       <!-- 表单内回车即提交：依赖原生 form + type="submit"，不手写 keydown -->
@@ -84,7 +142,7 @@ const submit = async () => {
             v-model="form.username"
             type="text"
             autocomplete="username"
-            placeholder="请输入账号"
+            placeholder="3-20 位字母、数字、下划线"
             :aria-invalid="isInvalid('username')"
             :disabled="submitting"
             autofocus
@@ -96,10 +154,37 @@ const submit = async () => {
           <input
             id="password"
             v-model="form.password"
-            type="password"
-            autocomplete="current-password"
-            placeholder="请输入密码"
+            :type="'password'"
+            :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
+            :placeholder="mode === 'login' ? '请输入密码' : '8-64 位'"
             :aria-invalid="isInvalid('password')"
+            :disabled="submitting"
+          />
+        </div>
+
+        <!-- 注册模式额外两项 -->
+        <div v-if="mode === 'register'" class="field">
+          <label for="confirm">确认密码</label>
+          <input
+            id="confirm"
+            v-model="form.confirmPassword"
+            type="password"
+            autocomplete="new-password"
+            placeholder="再输入一次密码"
+            :aria-invalid="isInvalid('confirm')"
+            :disabled="submitting"
+          />
+        </div>
+
+        <div v-if="mode === 'register'" class="field">
+          <label for="displayName">昵称 <span class="optional">可选</span></label>
+          <input
+            id="displayName"
+            v-model="form.displayName"
+            type="text"
+            autocomplete="nickname"
+            placeholder="不填则使用账号作为昵称"
+            :aria-invalid="isInvalid('displayName')"
             :disabled="submitting"
           />
         </div>
@@ -109,11 +194,20 @@ const submit = async () => {
         </p>
 
         <button type="submit" class="submit" :disabled="submitting">
-          {{ submitting ? '登录中…' : '登录' }}
+          {{ submitting ? '提交中…' : (mode === 'login' ? '登录' : '注册并登录') }}
         </button>
       </form>
 
-      <p class="foot">账号由管理员创建，忘记密码请联系管理员</p>
+      <p class="switch">
+        <template v-if="mode === 'login'">
+          还没有账号？
+          <button type="button" class="link" @click="switchMode" :disabled="submitting">立即注册</button>
+        </template>
+        <template v-else>
+          已经有账号？
+          <button type="button" class="link" @click="switchMode" :disabled="submitting">返回登录</button>
+        </template>
+      </p>
     </div>
   </div>
 </template>
@@ -189,7 +283,7 @@ const submit = async () => {
 /* ---------- 表单 ---------- */
 .form {
   display: grid;
-  gap: 18px;
+  gap: 16px;
 }
 
 .field {
@@ -201,6 +295,12 @@ const submit = async () => {
   color: #555;
   font-size: 13px;
   letter-spacing: 0.02em;
+}
+
+.optional {
+  color: #b5b5b5;
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 .field input {
@@ -278,11 +378,30 @@ const submit = async () => {
   cursor: progress;
 }
 
-.foot {
+.switch {
   margin: 20px 0 0;
   color: #a0a0a0;
   font-size: 12px;
   text-align: center;
+}
+
+.link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #1976d2;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.link:disabled {
+  color: #b5b5b5;
+  cursor: not-allowed;
 }
 
 /* 进场：卡片轻微上浮 */
