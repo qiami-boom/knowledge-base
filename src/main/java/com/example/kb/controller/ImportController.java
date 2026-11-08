@@ -4,10 +4,10 @@ import com.example.kb.config.BusinessException;
 import com.example.kb.config.Result;
 import com.example.kb.service.ImportService;
 import com.example.kb.service.dto.ImportResult;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 
 /**
@@ -16,24 +16,35 @@ import java.io.IOException;
  */
 @RestController
 @RequestMapping("/api/knowledge")
-@CrossOrigin(origins = "*")
 public class ImportController {
 
     @Autowired
     private ImportService importService;
 
+    /**
+     * 添加文件
+     * @param file
+     * @param httpRequest
+     * @return
+     * @throws IOException
+     */
     @PostMapping("/import")
     //@RequestParam("file") MultipartFile file → 接收文件，转成 MultipartFile 对象
     public Result<ImportResult> importFile(
-            @RequestParam("file") MultipartFile file) throws IOException {
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest httpRequest) throws IOException {
 
         if(file.isEmpty()){
             throw new BusinessException(400,"上传文件不能为空");
         }
 
+
+        Long userId = (Long) httpRequest.getAttribute("userId");
+
         ImportResult result = importService.importFile(
                 file.getOriginalFilename(),
-                file.getInputStream()
+                file.getInputStream(),
+                userId
         );
 
         return Result.success(result);

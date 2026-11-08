@@ -46,7 +46,7 @@ public class AgentService {
     @Autowired
     private AgentToolRegistry registry;
 
-    public AgentReply chat(AgentChatRequest request) {
+    public AgentReply chat(AgentChatRequest request, Long userId) {
         List<Map<String, Object>> messages = new ArrayList<>();
         messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT));
 
@@ -88,7 +88,7 @@ public class AgentService {
                 AgentTool tool = registry.find(name);
                 ToolResult result = tool == null
                         ? ToolResult.text("没有叫 " + name + " 的工具。")
-                        : tool.execute(args);
+                        : tool.execute(args, userId);
 
                 steps.add("调用 " + name);
                 cards.addAll(result.cards());

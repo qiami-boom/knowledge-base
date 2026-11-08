@@ -45,9 +45,9 @@ public class ListDueCardsTool implements AgentTool {
      * 失败时返回文本错误，不能抛异常——抛出去会中断整个 Agent 循环
      */
     @Override
-    public ToolResult execute(String argumentsJson){
+    public ToolResult execute(String argumentsJson, Long userId){
         try{
-            List<ReviewCard> cards = reviewService.dueCards();
+            List<ReviewCard> cards = reviewService.dueCards(userId);
             if(cards.isEmpty()){
                 return ToolResult.text("今天没有到期的复习卡。");
             }

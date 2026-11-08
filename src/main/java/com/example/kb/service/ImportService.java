@@ -28,7 +28,16 @@ public class ImportService {
     @Value("${ai.import.min-score:3}")
     private int minScore;
 
-    public ImportResult importFile(String filename, InputStream inputStream) {
+
+    /**
+     * 设置评分？todo 写注释
+     * @param filename
+     * @param inputStream
+     * @param userId
+     * @return
+     */
+
+    public ImportResult importFile(String filename, InputStream inputStream,Long userId) {
         List<Knowledge> parsed = parse(filename, inputStream);
         List<Knowledge> candidates = new ArrayList<>();
         List<ScoreResult> candidateResults = new ArrayList<>();
@@ -89,7 +98,7 @@ public class ImportService {
             }
         }
         if(!qualified.isEmpty()){
-            knowledgeService.batchAdd(qualified);
+            knowledgeService.batchAdd(qualified,userId);
         }
         // 返回导入统计结果
         return new ImportResult(total, scoredCount, qualified.size());

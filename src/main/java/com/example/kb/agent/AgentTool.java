@@ -17,6 +17,10 @@ public interface AgentTool {
     /** 作为JSON对象被原样拼进请求体的 tools 字段 */
     Map<String, Object> parameters();
 
-    /** 执行。argumentsJson 是模型给的参数 JSON 原文，返回给模型看的结果 */
-    ToolResult execute(String argumentsJson);
+    /**
+     * 执行。argumentsJson 是模型给的参数 JSON 原文
+     * @param userId 当前登录用户 id，工具落库时必须带上，禁止传 null
+     * @return 返回给模型看的结果
+     */
+    ToolResult execute(String argumentsJson, Long userId);
 }

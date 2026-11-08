@@ -58,7 +58,7 @@ public class SearchKnowledgeTool implements AgentTool {
     }
 
     @Override
-    public ToolResult execute(String argumentsJson) {
+    public ToolResult execute(String argumentsJson, Long userId) {
         try {
             JsonNode args = mapper.readTree(argumentsJson);
             //取关键词字段,转string字符串,去掉首尾空格
@@ -68,7 +68,7 @@ public class SearchKnowledgeTool implements AgentTool {
                 return ToolResult.text("没有收到搜索关键词。");
             }
 
-            List<Knowledge> list = knowledgeService.search(keyword, LIMIT);
+            List<Knowledge> list = knowledgeService.search(keyword, LIMIT, userId);
             if (list.isEmpty()) {
                 return ToolResult.text("没找到和「" + keyword + "」相关的知识。");
             }

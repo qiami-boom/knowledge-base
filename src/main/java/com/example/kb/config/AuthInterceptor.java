@@ -1,16 +1,12 @@
 package com.example.kb.config;
 
 
-import com.sun.net.httpserver.HttpsServer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.HandlerInterceptor;
-
-import java.net.http.HttpResponse;
 
 /**
  * 登录拦截器：校验 Session，把 userId 挂到请求属性上供 Controller 使用。
@@ -34,10 +30,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request,
                              HttpServletResponse response,
                              Object handle) {
-        //跨域预检不带Cookie，必须放行
-        /**
-         * OPTIONS 是浏览器的"敲门问路"，它不带 Cookie。你拦它，等于把门卫拦在了自己家门口，后面真正持证的人也进不来。
-         */
+        // 跨域预检不带 Cookie：OPTIONS 是浏览器的敲门问路，拦掉会导致所有跨域请求失败
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             return true;
         }
@@ -52,7 +45,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         request.setAttribute(SESSION_USER_ID,userId);
-        log.info("登录拦截器启动成功");
+        log.debug("鉴权通过，userId={}", userId);
         return true;
 
     }

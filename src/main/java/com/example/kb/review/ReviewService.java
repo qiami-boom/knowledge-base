@@ -34,13 +34,13 @@ public class ReviewService {
         this.aiService = aiService;
     }
 
-    public List<ReviewCard> dueCards() {
+    public List<ReviewCard> dueCards(Long userId) {
         LocalDateTime now = LocalDateTime.now();
-        return reviewCardMapper.findDue(now);
+        return reviewCardMapper.findDue(userId, now);
     }
 
-    public ReviewCard review(Long cardId, RecallQuality quality) {
-        ReviewCard reviewCard = reviewCardMapper.findById(cardId);
+    public ReviewCard review(Long cardId, RecallQuality quality, Long userId) {
+        ReviewCard reviewCard = reviewCardMapper.findById(cardId, userId);
         if (reviewCard == null) {
             throw new BusinessException(404, "复习卡不存在");
         }
@@ -61,13 +61,15 @@ public class ReviewService {
      * 为一条知识生成复习卡
      * 幂等（idempotent）：已有卡就直接返回，不重复调 AI —— AI 慢且花钱
      */
-    public List<ReviewCard> createCards(Long knowledgeId) {
-        List<ReviewCard> existing = reviewCardMapper.findByKnowledgeId(knowledgeId);
+    public List<ReviewCard> createCards(Long knowledgeId, Long userId) {
+        // 先校验知识归属：不属于当前用户时直接 404，
+        // 不能先查已有卡片，否则会通过幂等路径把别人的卡片返回出去
+        Knowledge knowledge = knowledgeService.findById(knowledgeId, userId);
+
+        List<ReviewCard> existing = reviewCardMapper.findByKnowledgeId(knowledgeId, userId);
         if (!existing.isEmpty()) {
             return existing;
         }
-
-        Knowledge knowledge = knowledgeService.findById(knowledgeId); // 不存在会抛 404
         QuizQuestion quiz = aiService.generateQuizQuestion(knowledge);
 
         // AI 失败时返回的是空串，白卡不能入库
