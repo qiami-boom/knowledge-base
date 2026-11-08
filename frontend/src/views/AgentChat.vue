@@ -7,6 +7,11 @@ import { me as currentUser, getAgentRule, updateAgentRule } from '../api/auth'
 import { getAllKnowledge } from '../api/knowledge'
 import { describeError } from '../utils/error'
 
+// 显式声明组件名：App.vue 里的 <keep-alive include="AgentChat"> 靠它匹配。
+// 有这个名字，切到知识库/复习页时本组件只是"失活"而不是销毁，
+// 正在等待的 agent 请求回来后仍然能落到 messages 里，不会被丢掉。
+defineOptions({ name: 'AgentChat' })
+
 // 消息列表：role = 'agent' | 'user'，drafts = 这条消息附带的草稿卡片
 const messages = ref([])
 const input = ref('')

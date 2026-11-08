@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { logout as logoutApi } from './api/auth'
 import { markLoggedOut } from './utils/authState'
@@ -7,6 +7,15 @@ import { markLoggedOut } from './utils/authState'
 const route = useRoute()
 const router = useRouter()
 const loggingOut = ref(false)
+
+/**
+ * 缓存实例的版本号：回到登录页时 +1，让 keep-alive 里的对话页作废。
+ * 否则 A 退出、B 登录后，B 会看到 A 上一轮的聊天记录（缓存没清）。
+ */
+const viewKey = ref(0)
+watch(() => route.name, (name) => {
+  if (name === 'login') viewKey.value++
+})
 
 /**
  * 退出登录：先让后端销毁会话，再清本地判断并回登录页。
@@ -40,7 +49,16 @@ const logout = async () => {
       </nav>
     </header>
     <main :class="{ 'app-content': !route.meta.hideHeader }">
-      <router-view />
+      <!--
+        只缓存对话页：agent 回答要几十秒，用户切去知识库再回来时，
+        组件不能被销毁，否则请求回来时已经没有地方接结果了。
+        其它页面不缓存，避免列表/复习页显示过期数据。
+      -->
+      <router-view v-slot="{ Component }">
+        <keep-alive include="AgentChat" :max="1">
+          <component :is="Component" :key="viewKey" />
+        </keep-alive>
+      </router-view>
     </main>
   </div>
 </template>
