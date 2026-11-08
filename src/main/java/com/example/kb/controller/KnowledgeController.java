@@ -2,6 +2,7 @@ package com.example.kb.controller;
 
 import com.example.kb.config.Result;
 import com.example.kb.entity.Knowledge;
+import com.example.kb.mapper.KnowledgeMapper;
 import com.example.kb.service.KnowledgeService;
 import com.example.kb.service.dto.KnowledgeRequest;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/knowledges")
+@CrossOrigin(origins = "*")
 public class KnowledgeController {
 
     @Autowired
@@ -29,16 +31,17 @@ public class KnowledgeController {
     }
 
     @GetMapping
-    public Result<List<Knowledge>> getAll(HttpServletRequest httpRequest) {
-        return Result.success(knowledgeService.findAll(uid(httpRequest)));
+    public Result<List<Knowledge>> getAll(HttpServletRequest httptRequest){
+        return Result.success(knowledgeService.findAll(uid(httptRequest)));
     }
 
     @GetMapping("/{id}")
-    public Result<Knowledge> findById(@PathVariable Long id, HttpServletRequest httpRequest) {
-        return Result.success(knowledgeService.findById(id, uid(httpRequest)));
+    public Result<Knowledge> findById(@PathVariable Long id,HttpServletRequest httpRequest){
+        Knowledge knowledge = knowledgeService.findById(id, uid(httpRequest));
+        return Result.success(knowledge);
     }
 
-    @PostMapping
+    @PostMapping//@Valid 表示“让 Spring 对这个 DTO 执行字段校验”。如果没有 @Valid，字段上的 @NotBlank 等规则不会生效
     public Result<Knowledge> add(@Valid @RequestBody KnowledgeRequest request,
                                  HttpServletRequest httpRequest) {
         return Result.success(knowledgeService.add(request, uid(httpRequest)));
@@ -47,12 +50,12 @@ public class KnowledgeController {
     @PutMapping("/{id}")
     public Result<Knowledge> update(@PathVariable Long id,
                                     @Valid @RequestBody KnowledgeRequest request,
-                                    HttpServletRequest httpRequest) {
-        return Result.success(knowledgeService.update(id, request, uid(httpRequest)));
+                                    HttpServletRequest httpRequest){
+        return Result.success(knowledgeService.update(id,request, uid(httpRequest)));
     }
 
     @DeleteMapping("/{id}")
-    public Result<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest) {
+    public Result<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest){
         knowledgeService.delete(id, uid(httpRequest));
         return Result.success();
     }
