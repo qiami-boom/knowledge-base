@@ -1,11 +1,11 @@
 package com.example.kb.service.dto;
 
 public record ScoreResult(String category, int score, String title, String reason,
-                          boolean why, boolean general) {
+                          boolean why, boolean general,String summary) {
 
     // 兼容旧调用：AI 调用失败、格式错误这些场景拿不到两个布尔
     public ScoreResult(String category, int score, String title, String reason) {
-        this(category, score, title, reason, false, false);
+        this(category, score, title, reason, false, false,"");
     }
 
     // 两个是非题映射成分数，不再让模型自己填分

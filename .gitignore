@@ -33,6 +33,8 @@ build/
 *.db
 *.sqlite
 *.log
+*.bak
+cookie.txt
 
 ### VS Code ###
 .vscode/

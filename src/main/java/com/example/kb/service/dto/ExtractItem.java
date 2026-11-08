@@ -9,5 +9,5 @@ package com.example.kb.service.dto;
  * @param why
  * @param general
  */
-public record ExtractItem (String title,String content,String reason,Boolean why,Boolean general){
+public record ExtractItem (String title,String content,String reason,Boolean why,Boolean general,String summary){
 }

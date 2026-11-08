@@ -12,7 +12,16 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
-
+/**
+ * 工具：从一段文本中抽取知识点草稿。
+ *
+ * 这个类没有代码调用方——它由 Agent 循环按名字调用：
+ * 模型读 description() 判断该不该用，用了之后 execute() 的结果
+ * 会作为一条 tool 消息回喂给模型，模型再决定下一步。
+ *
+ * 副作用：会往 knowledge 表写入 status = DRAFT 的草稿，
+ * 用户不确认就不会变成正式知识，丢弃即物理删除。
+ */
 @Slf4j
 @Component
 public class ExtractTool implements AgentTool {

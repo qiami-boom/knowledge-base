@@ -45,6 +45,7 @@ public class ExtractService {
             knowledge.setStatus("DRAFT");
             knowledge.setBatchId(batchId);
             knowledge.setAiScore(ScoreResult.scoreOf(item.why(), item.general()));
+            knowledge.setSummary(item.summary());
             drafts.add(knowledge);
         }
         return drafts;
@@ -108,6 +109,7 @@ public class ExtractService {
                 continue;
             }
             k.setAiScore(r.score());
+            k.setSummary(r.summary());
             if (r.title() != null && !r.title().isBlank()) {
                 k.setTitle(r.title().length() > 40 ? r.title().substring(0, 40) : r.title());
             }

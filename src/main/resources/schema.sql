@@ -93,3 +93,11 @@ CREATE TABLE IF NOT EXISTS user (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS uk_user_username ON user(username);
+
+-- 演示账号：testuser / 12345678
+-- 密码是 BCrypt 哈希。写进 schema 是为了让"拉下代码的人"和评委能直接登录，
+-- 不用自己注册。真实项目不能这么做（哈希不该进仓库）。
+INSERT OR IGNORE INTO user (username, password_hash, display_name, agent_rule, created_at)
+VALUES ('testuser',
+        '$2a$10$k9XzfSJtTtaaI3oQTjTtoeUmgNEPQh.bKagJW2.a4eP6Ig0K/2vKG',
+        '演示账号', 'EXPLAIN', '2026-11-01T00:00:00');

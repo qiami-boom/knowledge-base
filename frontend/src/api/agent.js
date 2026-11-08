@@ -35,3 +35,10 @@ export const extractByFile = (file) => {
 export const extractByUrl = (url) => {
     return request.post('/extract/url', { url }, { timeout: 120000 })
 }
+
+// Agent 对话：后端会自己决定调用哪些工具，可能调多个，所以要给较长超时
+// 后端：POST /api/agent/chat  body: { message, history }
+// 返回：{ reply, cards, steps }
+export const agentChat = (message, history = []) => {
+    return request.post('/agent/chat', { message, history }, { timeout: 180000 })
+}

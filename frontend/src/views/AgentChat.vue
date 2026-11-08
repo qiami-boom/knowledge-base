@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
-import { extractKnowledge, confirmDraft, discardDraft, extractByFile, extractByUrl } from '../api/agent'
+import { confirmDraft, discardDraft, extractByFile, extractByUrl, agentChat } from '../api/agent'
 import { getDueCards } from '../api/review'
 import { describeError } from '../utils/error'
 
@@ -88,25 +88,33 @@ const send = async () => {
   if (!text || sending.value) return
   errorTip.value = ''
 
+  // 先取历史（不含当前这句），再 push 当前消息，避免同一句被发两遍
+  const history = messages.value
+      .slice(-6)
+      .filter(m => m.text)
+      .map(m => ({
+        role: m.role === 'agent' ? 'assistant' : 'user',
+        content: m.text
+      }))
+
   messages.value.push({ role: 'user', text, drafts: [] })
   input.value = ''
   sending.value = true
   scrollToBottom()
 
   try {
-    const result = await extractKnowledge(text)
-    const items = result.items || []
+    // 走后端 Agent 循环：由模型决定调哪些工具，可能一次调多个
+    const result = await agentChat(text, history)
     messages.value.push({
       role: 'agent',
-      text: items.length === 0
-          ? '这段里没抽到值得保存的知识点。'
-          : `抽出 ${items.length} 条，你看哪几条要入库：`,
+      text: result.reply || '模型没有返回内容。',
       // state 是前端自己加的状态，后端不关心
-      drafts: items.map(i => ({ ...i, state: 'pending' }))
+      drafts: (result.cards || []).map(i => ({ ...i, state: 'pending' })),
+      steps: result.steps || []
     })
   } catch (e) {
-    console.error('抽取失败:', e)
-    errorTip.value = describeError(e, '抽取失败，请稍后重试')
+    console.error('Agent 调用失败:', e)
+    errorTip.value = describeError(e, '对话失败，请稍后重试')
   } finally {
     sending.value = false
     scrollToBottom()
@@ -201,6 +209,11 @@ const submitUrl = async () => {
     <div class="messages" ref="listRef">
       <div v-for="(m, i) in messages" :key="i" :class="['msg', m.role]">
         <div class="bubble">{{ m.text }}</div>
+
+        <!-- 模型自己调用了哪些工具，给用户看执行轨迹 -->
+        <div v-if="m.steps && m.steps.length" class="steps">
+          <span v-for="(s, si) in m.steps" :key="si" class="step">{{ s }}</span>
+        </div>
 
         <!-- 草稿卡片：挂在 agent 那条消息下面 -->
         <div v-if="m.drafts && m.drafts.length" class="draft-list">
@@ -316,6 +329,19 @@ const submitUrl = async () => {
 .bubble.typing {
   color: #888;
   font-style: italic;
+}
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.step {
+  font-size: 12px;
+  color: #1976d2;
+  background: #e8f1fb;
+  border-radius: 10px;
+  padding: 2px 8px;
 }
 .draft-list {
   width: 100%;

@@ -86,13 +86,13 @@ public class AiService {
         //`normalizeCategory` 做两件事：容忍大小写和空格；不认识的分类一律`UNKNOWN`
         String category = normalizeCategory(raw.category());
         if (!"KNOWLEDGE".equals(category)) {
-            return new ScoreResult(category, 1, "", raw.reason(), raw.why(), raw.general());
+            return new ScoreResult(category, 1, "", raw.reason(), raw.why(), raw.general(), raw.summary());
         }
 
         // 两个是非题映射成分数，不再让模型自己填分
         int score = ScoreResult.scoreOf(raw.why(),raw.general());
 
-        return new ScoreResult(category, score, raw.title(), raw.reason(), raw.why(), raw.general());
+        return new ScoreResult(category, score, raw.title(), raw.reason(), raw.why(), raw.general(), raw.summary());
     }
 
     /**
@@ -140,6 +140,8 @@ private String buildPrompt(Knowledge knowledge) {
 
             只有 KNOWLEDGE 才答这两个问题；其他三类一律 1 分，两个都答 false。
             判断对象是 AI 的回答；回答里解释了"为什么"，就算用户只说了"写完了"也归 KNOWLEDGE。
+            
+            - summary：一句话概括这条知识讲了什么，30 字以内，用于检索时快速判断；不要重复 title，非 KNOWLEDGE 给空字符串
 
             第三步：KNOWLEDGE 起标题，12-24 字，不要"我""你""下一步"这类对话痕迹；
             非 KNOWLEDGE 时 title 给空字符串。
@@ -151,16 +153,16 @@ private String buildPrompt(Knowledge knowledge) {
 
             示例：
             1) 用户问队名怎么起，AI 给了起名标准 →
-            {"category":"LOGISTICS","why":false,"general":false,"title":"","reason":"非知识｜赛事事务"}
+            {"category":"LOGISTICS","why":false,"general":false,"title":"","summary":"","reason":"非知识｜赛事事务"}
 
             2) 用户问 @Autowired 怎么写，AI 只给了一行用法 →
-            {"category":"KNOWLEDGE","why":false,"general":true,"title":"@Autowired 基本写法","reason":"做法｜仅给写法"}
+            {"category":"KNOWLEDGE","why":false,"general":true,"title":"@Autowired 基本写法","summary":"按类型自动注入，不用手动 new 对象","reason":"做法｜仅给写法"}
 
             3) 用户问 RecallQuality 为什么报错，AI 指出文件名与类名不一致并讲了 Java 命名规则 →
-            {"category":"KNOWLEDGE","why":true,"general":false,"title":"文件名与类名不一致导致编译报错","reason":"根因｜公共类须与文件名同名"}
+            {"category":"KNOWLEDGE","why":true,"general":false,"title":"文件名与类名不一致导致编译报错","summary":"Java 公共类须与文件名同名","reason":"根因｜公共类须与文件名同名"}
 
             4) 用户问包该按层分还是按功能分，AI 讲了取舍与判断标准 →
-            {"category":"KNOWLEDGE","why":true,"general":true,"title":"layer-first 与 feature-first 分包取舍","reason":"推导｜按变更频率选分包方式"}
+            {"category":"KNOWLEDGE","why":true,"general":true,"title":"layer-first 与 feature-first 分包取舍","summary":"按变更频率决定按层分还是按功能分","reason":"推导｜按变更频率选分包方式"}
             现在评估：
             用户提问：%s
             AI 回答：%s
@@ -467,6 +469,7 @@ private String cleanJson(String raw) {
                 - why：这段内容解释了"为什么"吗？（机制、根因、设计取舍、原理）
                 - general：它换到另一个项目、另一门语言也成立吗？
                 - reason：证据类型｜一句话，证据类型只能从 因果链/根因/边界/推导/做法/非知识 里挑
+                - summary：一句话概括这条知识点，30 字以内，用于检索时快速判断
                 
                 规则：
                 1. 同一件事只抽一条，不要重复
@@ -474,7 +477,7 @@ private String cleanJson(String raw) {
                 3. 如果这段里没有值得保存的内容，返回 {"items":[]}，不要硬凑
                 
                 输出严格 JSON，不要任何其他文字：
-                {"items":[{"title":"...","content":"...","why":true,"general":false,"reason":"根因｜..."}]}
+                {"items":[{"title":"...","content":"...","summary":"...","why":true,"general":false,"reason":"根因｜..."}]}
                 
                 文本：
                 %s
@@ -554,5 +557,48 @@ private String cleanJson(String raw) {
         }
     }
 
+    /**
+     * 带工具调用的对话请求。跟 callAI 的三个区别：
+     * 1) 传完整 messages 数组，不是单条 prompt —— Agent 需要多轮上下文
+     * 2) 带 tools，让模型自己决定调不调、调哪个
+     * 3) 不设 response_format=json_object —— 它跟 tool_calls 冲突，模型会只吐 JSON 不调工具
+     *
+     * @param messages OpenAI 格式的消息数组（含 system / user / assistant / tool）
+     * @param tools    工具清单，由 AgentToolRegistry 生成
+     * @return choices[0].message 节点；失败返回 null，由调用方翻译成人话
+     */
+    public JsonNode chatWithTools(java.util.List<java.util.Map<String, Object>> messages,
+                                  java.util.List<java.util.Map<String, Object>> tools) {
+        try {
+            java.util.Map<String, Object> body = new java.util.HashMap<>();
+            body.put("model", model);
+            body.put("messages", messages);
+            body.put("tools", tools);
+            body.put("tool_choice", "auto");
+            body.put("temperature", 0.1);
+
+            String jsonBody = mapper.writeValueAsString(body);
+            MediaType JSON = MediaType.parse("application/json; charset=utf-8");
+            RequestBody rb = RequestBody.create(jsonBody, JSON);
+            Request request = new Request.Builder()
+                    .url(baseUrl + "/chat/completions")
+                    .addHeader("Authorization", "Bearer " + apiKey)
+                    .addHeader("Content-Type", "application/json")
+                    .post(rb)
+                    .build();
+
+            try (Response response = getOkHttpClient().newCall(request).execute()) {
+                String respBody = response.body() == null ? "" : response.body().string();
+                if (!response.isSuccessful()) {
+                    log.warn("[Agent] 请求失败 HTTP {}：{}", response.code(), respBody);
+                    return null;
+                }
+                return mapper.readTree(respBody).path("choices").path(0).path("message");
+            }
+        } catch (Exception e) {
+            log.warn("[Agent] 请求异常：{}", e.getMessage());
+            return null;
+        }
+    }
 
 }

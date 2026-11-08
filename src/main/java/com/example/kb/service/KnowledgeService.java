@@ -110,5 +110,11 @@ public Knowledge findById (Long id){
         knowledgeMapper.deleteById(id);
     }
 
+    public  List<Knowledge> search(String keyword, int limit){
+        if(keyword == null || keyword.isBlank()){
+            return List.of();
+        }
+        return knowledgeMapper.searchByKeyword(keyword.trim(), limit);
+    }
 
 }

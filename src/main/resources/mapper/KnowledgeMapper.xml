@@ -11,6 +11,14 @@
     <select id="findById" parameterType="Long" resultType="com.example.kb.entity.Knowledge">
         SELECT * FROM knowledge WHERE id = #{id}
     </select>
+    <!-- 按关键词模糊搜索：标题或正文命中即算 -->
+    <select id="searchByKeyword" resultType="com.example.kb.entity.Knowledge">
+        SELECT * FROM knowledge
+        WHERE status = 'ACTIVE'
+          AND (title LIKE '%' || #{keyword} || '%' OR content LIKE '%' || #{keyword} || '%')
+        ORDER BY ai_score DESC, created_at DESC
+            LIMIT #{limit}
+    </select>
     <!--新增 -->
     <insert id="insert" parameterType="com.example.kb.entity.Knowledge"
             useGeneratedKeys="true" keyProperty="id">
