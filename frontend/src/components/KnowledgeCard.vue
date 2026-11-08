@@ -2,7 +2,7 @@
   <div class="card" @click="handleClick">
     <div class="card-header">
       <span class="category-tag">{{ knowledge.category || '未分类' }}</span>
-      <span class="star">🤖 AI评分: {{ knowledge.aiScore || 0 }}⭐</span>
+      <span class="score-chip">AI 评分 <b>{{ knowledge.aiScore || 0 }}</b></span>
     </div>
     <h3 class="title">{{ knowledge.title }}</h3>
     <p class="content-preview">{{ knowledge.content?.substring(0, 100) }}...</p>
@@ -40,40 +40,51 @@ const formatDate = (dateStr) => {
 
 <style scoped>
 .card {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 16px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 18px 20px;
   cursor: pointer;
-  transition: box-shadow 0.2s;
+  transition: box-shadow 0.2s, transform 0.2s;
   background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 .card:hover {
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.09);
+  transform: translateY(-1px);
 }
 .card-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 8px;
 }
 .category-tag {
-  background: #e8f4fd;
-  color: #1976d2;
+  background: #eef2ff;
+  color: #3b6ef5;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: 6px;
   font-size: 12px;
 }
-.star {
-  font-size: 14px;
-  color: #ffa726;
+.score-chip {
+  font-size: 12px;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: #eef2ff;
+  color: #3b6ef5;
+}
+.score-chip b {
+  font-weight: 600;
 }
 .title {
   margin: 8px 0;
-  font-size: 18px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #222;
 }
 .content-preview {
   color: #666;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   margin: 0 0 12px 0;
 }
 .card-footer {

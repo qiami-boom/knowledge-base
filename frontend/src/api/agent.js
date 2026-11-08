@@ -37,8 +37,9 @@ export const extractByUrl = (url) => {
 }
 
 // Agent 对话：后端会自己决定调用哪些工具，可能调多个，所以要给较长超时
-// 后端：POST /api/agent/chat  body: { message, history }
+// 后端：POST /api/agent/chat  body: { message, history, customRule }
+// customRule 只在风格选了"自定义"时才有值，普通模式传 null
 // 返回：{ reply, cards, steps }
-export const agentChat = (message, history = []) => {
-    return request.post('/agent/chat', { message, history }, { timeout: 180000 })
+export const agentChat = (message, history = [], customRule = null) => {
+    return request.post('/agent/chat', { message, history, customRule }, { timeout: 180000 })
 }

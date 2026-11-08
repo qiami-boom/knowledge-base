@@ -77,7 +77,8 @@ public class SearchKnowledgeTool implements AgentTool {
             sb.append("找到 ").append(list.size()).append(" 条相关知识：\n");
             for (int i = 0; i < list.size(); i++) {
                 Knowledge k = list.get(i);
-                sb.append(i + 1).append(". ").append(k.getTitle())
+                sb.append(i + 1).append(". [id=").append(k.getId()).append("] ")
+                        .append(k.getTitle())
                         .append("（").append(k.getAiScore()).append(" 星）");
 
                 String text = k.getSummary();

@@ -123,14 +123,14 @@ private String buildPrompt(Knowledge knowledge) {
             不要用"是否通用"当标准——本项目踩的坑、具体的报错根因、具体的写法，都算有用。
 
             第一步：归类，只能选一个
-            KNOWLEDGE — 编程概念、机制解释、报错根因、设计取舍、踩坑、API 用法
+            KNOWLEDGE — 任何学科的概念、机制、原理、推导、踩坑、具体用法（编程、英语、数学、物理都算）
             LOGISTICS — 赛事、报名、队名、答辩、材料格式这类一次性事务
             CHITCHAT  — 寒暄、确认、催促、要求重发或换格式
             OPERATION — 纯点击步骤，且没有解释"为什么"
 
             第二步：回答两个是非题，不要自己给分数
             why：这段内容解释了"为什么"吗？（机制、根因、设计取舍、原理）
-            general：它换到另一个项目、另一门语言也成立吗？
+            general：它换到另一个项目、另一门学科也成立吗？
 
             两个答案怎么变成分数，你不用管，后端会算：
             why=true,  general=true  → 5
@@ -163,6 +163,12 @@ private String buildPrompt(Knowledge knowledge) {
 
             4) 用户问包该按层分还是按功能分，AI 讲了取舍与判断标准 →
             {"category":"KNOWLEDGE","why":true,"general":true,"title":"layer-first 与 feature-first 分包取舍","summary":"按变更频率决定按层分还是按功能分","reason":"推导｜按变更频率选分包方式"}
+            5) 用户问 affect 和 effect 怎么区分，AI 讲了词性和常见搭配 →
+            {"category":"KNOWLEDGE","why":true,"general":true,"title":"affect 与 effect 的词性差异","summary":"affect 是动词，effect 是名词","reason":"边界｜按词性区分"}
+
+            6) 用户问洛必达法则什么时候能用，AI 讲了 0/0 型的前提条件 →
+            {"category":"KNOWLEDGE","why":true,"general":true,"title":"洛必达法则的适用前提","summary":"只适用于 0/0 与 ∞/∞ 型极限","reason":"边界｜非此类型不可用"}
+
             现在评估：
             用户提问：%s
             AI 回答：%s
@@ -401,10 +407,11 @@ private String cleanJson(String raw) {
             知识点内容：%s
             个人备注：%s
             """.formatted(
+                knowledge.getTitle() != null ? knowledge.getTitle() : "（无标题）",
+                knowledge.getContent() != null ? knowledge.getContent() : "（无知识点记录）",
                 knowledge.getPersonalNote() != null && !knowledge.getPersonalNote().isBlank()
                         ? knowledge.getPersonalNote()
-                        : knowledge.getTitle(),
-                knowledge.getContent() != null ? knowledge.getContent() : "（无知识点记录）"
+                        : "（无备注）"
         );
         // 2. 发请求 + 判空
         String json = callAI(prompt);
@@ -465,9 +472,9 @@ private String cleanJson(String raw) {
                 每条输出这五个字段：
                 - title：24个字之内，说清讲了什么，不要照抄原话
                 - content：知识点正文。把对话里讲清楚的那几段原文照搬过来，不要压缩成摘要,
-                有代码、命令、报错原文就原样贴进来；原文本身很短就照抄，不要为了凑长度扩写
+                有代码、命令、公式、例题、报错原文就原样贴进来；原文本身很短就照抄，不要为了凑长度扩写
                 - why：这段内容解释了"为什么"吗？（机制、根因、设计取舍、原理）
-                - general：它换到另一个项目、另一门语言也成立吗？
+                - general：它换到另一个项目、另一门学科也成立吗？
                 - reason：证据类型｜一句话，证据类型只能从 因果链/根因/边界/推导/做法/非知识 里挑
                 - summary：一句话概括这条知识点，30 字以内，用于检索时快速判断
                 

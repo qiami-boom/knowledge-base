@@ -70,7 +70,7 @@ onMounted(load)
   padding: 20px 24px;
   margin-bottom: 20px;
   border-radius: 14px;
-  background: linear-gradient(135deg, #1976d2, #42a5f5);
+  background: linear-gradient(135deg, #3b6ef5, #42a5f5);
   color: #fff;
   box-shadow: 0 4px 12px rgba(25, 118, 210, 0.25);
 }
@@ -116,7 +116,7 @@ onMounted(load)
   padding: 14px 26px;
   border-radius: 999px;
   background: #fff;
-  color: #1976d2;
+  color: #3b6ef5;
   font-size: 17px;
   font-weight: 700;
   text-decoration: none;
@@ -132,7 +132,7 @@ onMounted(load)
   padding: 10px 20px;
 }
 .badge {
-  background: #1976d2;
+  background: #3b6ef5;
   color: #fff;
   border-radius: 999px;
   min-width: 24px;

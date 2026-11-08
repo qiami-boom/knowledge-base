@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import MarkdownIt from 'markdown-it'
 import { getKnowledgeById, updateKnowledge ,deleteKnowledge } from '../api/knowledge'
 import { generateCards } from '../api/review'
 import { describeError } from '../utils/error'
@@ -14,6 +15,16 @@ const loading = ref(true)
 const editing = ref(false)
 // 编辑草稿：独立于 knowledge，取消时整份丢弃，不污染原数据
 const editForm = ref({})
+
+// Markdown 渲染器：html:false 禁止内嵌 HTML（正文是 AI 生成的，防注入）
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
+
+/** 把正文的 Markdown 渲染成 HTML，星号、竖线表格、代码块都会变成正常排版 */
+const renderedContent = computed(() => {
+  const text = knowledge.value?.content
+  if (!text) return ''
+  return md.render(text)
+})
 
 // 进入编辑：把当前详情拷贝一份当草稿
 const openEdit = () => {
@@ -111,7 +122,10 @@ const handleDelete = async () => {
       <template v-if="!editing">
         <div class="detail-header">
           <span class="category-tag">{{ knowledge.category || '未分类' }}</span>
-          <span class="star">🤖 AI评分: {{ knowledge.aiScore || 0 }} | ⭐ 我的评分: {{ knowledge.starRating || 0 }}</span>
+          <span class="scores">
+            <span class="score-chip ai">AI 评分 <b>{{ knowledge.aiScore || 0 }}</b></span>
+            <span class="score-chip mine">我的评分 <b>{{ knowledge.starRating || 0 }}</b></span>
+          </span>
         </div>
         <h2 class="title">{{ knowledge.title }}</h2>
         <div class="meta">
@@ -120,7 +134,13 @@ const handleDelete = async () => {
           <span>创建: {{ knowledge.createdAt }}</span>
           <span>更新: {{ knowledge.updatedAt }}</span>
         </div>
-        <div class="content">{{ knowledge.content }}</div>
+        <!-- AI 摘要：一句话看懂这条在讲什么 -->
+        <div v-if="knowledge.summary" class="summary-card">
+          <span class="summary-label">AI 摘要</span>
+          <p class="summary-text">{{ knowledge.summary }}</p>
+        </div>
+
+        <div class="content markdown-body" v-html="renderedContent"></div>
         <div v-if="knowledge.personalNote" class="personal-note">
           <h4>个人备注</h4>
           <p>{{ knowledge.personalNote }}</p>
@@ -192,7 +212,7 @@ const handleDelete = async () => {
 .back-btn {
   border: none;
   background: none;
-  color: #1976d2;
+  color: #3b6ef5;
   cursor: pointer;
   font-size: 16px;
 }
@@ -221,7 +241,7 @@ const handleDelete = async () => {
 }
 .category-tag {
   background: #e8f4fd;
-  color: #1976d2;
+  color: #3b6ef5;
   padding: 4px 12px;
   border-radius: 4px;
   font-size: 13px;
@@ -247,8 +267,116 @@ const handleDelete = async () => {
 .content {
   font-size: 15px;
   line-height: 1.8;
-  white-space: pre-wrap;
   color: #444;
+}
+
+/* 两个评分标签：不用 emoji，浅色胶囊 */
+.scores {
+  display: flex;
+  gap: 8px;
+}
+.score-chip {
+  font-size: 13px;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+.score-chip b {
+  font-weight: 600;
+}
+.score-chip.ai {
+  background: #eef2ff;
+  color: #3b6ef5;
+}
+.score-chip.mine {
+  background: #fff8e6;
+  color: #b78600;
+}
+
+/* AI 摘要卡片 */
+.summary-card {
+  background: #f6f9ff;
+  border-left: 3px solid #3b6ef5;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 18px 0;
+}
+.summary-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b6ef5;
+}
+.summary-text {
+  margin: 6px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* Markdown 正文样式：让渲染后的标题、表格、代码块有正常排版 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  margin: 22px 0 10px;
+  font-weight: 600;
+  color: #222;
+  line-height: 1.4;
+}
+.markdown-body h1 { font-size: 19px; }
+.markdown-body h2 { font-size: 17px; }
+.markdown-body h3 { font-size: 16px; }
+.markdown-body p {
+  margin: 0 0 12px;
+}
+.markdown-body pre {
+  background: #f6f8fa;
+  padding: 12px 14px;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.markdown-body code {
+  background: #f1f3f5;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: Consolas, Monaco, monospace;
+}
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+}
+.markdown-body table {
+  border-collapse: collapse;
+  margin: 12px 0;
+  width: 100%;
+  font-size: 14px;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  text-align: left;
+}
+.markdown-body th {
+  background: #f8f9fa;
+  font-weight: 600;
+}
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0 0 12px;
+  padding-left: 22px;
+}
+.markdown-body li {
+  margin-bottom: 4px;
+}
+.markdown-body a {
+  color: #3b6ef5;
+}
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid #eee;
+  margin: 20px 0;
 }
 .personal-note {
   margin-top: 24px;
@@ -261,7 +389,7 @@ const handleDelete = async () => {
   color: #f57f17;
 }
 .edit-btn {
-  background: #1976d2;
+  background: #3b6ef5;
   color: white;
   border: none;
   padding: 6px 16px;
@@ -270,7 +398,7 @@ const handleDelete = async () => {
   font-size: 14px;
 }
 .edit-btn:hover {
-  background: #1565c0;
+  background: #2f5cd8;
 }
 .actions-right {
   display: flex;
@@ -300,7 +428,7 @@ const handleDelete = async () => {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #1976d2;
+  border-color: #3b6ef5;
 }
 .form-row {
   display: flex;
@@ -328,11 +456,11 @@ const handleDelete = async () => {
   color: #666;
 }
 .save-btn {
-  background: #1976d2;
+  background: #3b6ef5;
   color: white;
 }
 .save-btn:hover {
-  background: #1565c0;
+  background: #2f5cd8;
 }
 .review-box {
   margin-top: 24px;
@@ -347,11 +475,11 @@ const handleDelete = async () => {
   justify-content: space-between;
 }
 .review-label {
-  color: #1976d2;
+  color: #3b6ef5;
   font-weight: 600;
 }
 .gen-btn {
-  background: #1976d2;
+  background: #3b6ef5;
   color: #fff;
   border: none;
   padding: 6px 16px;
@@ -374,7 +502,7 @@ const handleDelete = async () => {
 .go-review {
   display: inline-block;
   margin-top: 8px;
-  color: #1976d2;
+  color: #3b6ef5;
   font-size: 14px;
 }
 </style>

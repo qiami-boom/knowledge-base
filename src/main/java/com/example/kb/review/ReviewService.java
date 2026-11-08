@@ -1,7 +1,10 @@
 package com.example.kb.review;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.example.kb.config.BusinessException;
 import com.example.kb.entity.Knowledge;
@@ -37,6 +40,74 @@ public class ReviewService {
     public List<ReviewCard> dueCards(Long userId) {
         LocalDateTime now = LocalDateTime.now();
         return reviewCardMapper.findDue(userId, now);
+    }
+
+    /** 已经复习过的卡，最近复习的排前面 */
+    public List<ReviewCard> reviewedCards(Long userId, int limit) {
+        return reviewCardMapper.findReviewed(userId, limit);
+    }
+
+    /**
+     * 五段掌握现状：把 1~7 阶压成四段计数，外加总卡数。
+     * stage 是"阶梯位置"，不是掌握程度——所以这里只呈现事实分布，不合成百分比。
+     */
+    public Map<String, Integer> stageStats(Long userId) {
+        List<Map<String, Object>> raw = reviewCardMapper.countByStage(userId);
+
+        int initial = 0;      // 1-2 阶
+        int strengthen = 0;   // 3-4 阶
+        int consolidate = 0;  // 5-6 阶
+        int mastered = 0;     // 7 阶
+
+        for (Map<String, Object> row : raw) {
+            int stage = ((Number) row.get("stage")).intValue();
+            int count = ((Number) row.get("cnt")).intValue();
+            if (stage <= 2) {
+                initial += count;
+            } else if (stage <= 4) {
+                strengthen += count;
+            } else if (stage <= 6) {
+                consolidate += count;
+            } else {
+                mastered += count;
+            }
+        }
+
+        Map<String, Integer> stats = new LinkedHashMap<>();
+        stats.put("initial", initial);
+        stats.put("strengthen", strengthen);
+        stats.put("consolidate", consolidate);
+        stats.put("mastered", mastered);
+        stats.put("total", initial + strengthen + consolidate + mastered);
+        return stats;
+    }
+
+    /**
+     * 每条知识的最高复习阶数：knowledgeId -> maxStage。
+     * 列表里用它显示"这条复习到哪一阶了"，没有卡的知识不会出现在 Map 里。
+     */
+    public Map<Long, Integer> progressMap(Long userId) {
+        List<Map<String, Object>> raw = reviewCardMapper.maxStageByKnowledge(userId);
+        Map<Long, Integer> result = new HashMap<>();
+        for (Map<String, Object> row : raw) {
+            Long knowledgeId = ((Number) row.get("knowledgeId")).longValue();
+            int maxStage = ((Number) row.get("maxStage")).intValue();
+            result.put(knowledgeId, maxStage);
+        }
+        return result;
+    }
+
+    /**
+     * 为某张复习卡实时生成一道选择题。
+     * 先校验卡归属，再取它对应的知识原文交给 AI 出题；卡片不存在返回 null，由 Controller 转 404。
+     */
+    public ChoiceQuestion generateQuiz(Long cardId, Long userId) {
+        ReviewCard card = reviewCardMapper.findById(cardId, userId);
+        if (card == null) {
+            return null;
+        }
+        Knowledge knowledge = knowledgeService.findById(card.getKnowledgeId(), userId);
+        return aiService.generateChoiceQuestion(knowledge);
     }
 
     public ReviewCard review(Long cardId, RecallQuality quality, Long userId) {

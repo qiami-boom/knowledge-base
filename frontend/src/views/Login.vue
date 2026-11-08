@@ -242,7 +242,7 @@ const submit = async () => {
   position: absolute;
   inset: 0 0 auto 0;
   height: 3px;
-  background: linear-gradient(90deg, #1976d2, #64b5f6 70%, #e3f2fd);
+  background: linear-gradient(90deg, #3b6ef5, #64b5f6 70%, #e3f2fd);
 }
 
 /* ---------- 品牌区 ---------- */
@@ -258,7 +258,7 @@ const submit = async () => {
   height: 46px;
   margin-bottom: 14px;
   border-radius: 10px;
-  background: #1976d2;
+  background: #3b6ef5;
   color: #fff;
   font-family: 'Songti SC', 'Noto Serif SC', 'STSong', serif;
   font-size: 22px;
@@ -268,7 +268,7 @@ const submit = async () => {
 
 .brand h1 {
   margin: 0 0 6px;
-  color: #1976d2;
+  color: #3b6ef5;
   font-size: 22px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -321,7 +321,7 @@ const submit = async () => {
 }
 
 .field input:focus {
-  border-color: #1976d2;
+  border-color: #3b6ef5;
   box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.12);
 }
 
@@ -350,7 +350,7 @@ const submit = async () => {
   padding: 12px;
   border: none;
   border-radius: 4px;
-  background: #1976d2;
+  background: #3b6ef5;
   color: #fff;
   font-family: inherit;
   font-size: 15px;
@@ -360,7 +360,7 @@ const submit = async () => {
 }
 
 .submit:hover:not(:disabled) {
-  background: #1565c0;
+  background: #2f5cd8;
 }
 
 .submit:active:not(:disabled) {
@@ -389,7 +389,7 @@ const submit = async () => {
   padding: 0;
   border: none;
   background: none;
-  color: #1976d2;
+  color: #3b6ef5;
   font-family: inherit;
   font-size: 12px;
   cursor: pointer;

@@ -48,37 +48,43 @@ const logout = async () => {
 <style scoped>
 #app {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #f7f8fa;
 }
 .app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #1976d2;
-  color: white;
-  padding: 16px 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  color: #222;
+  padding: 14px 28px;
+  border-bottom: 1px solid #eef0f3;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 .app-header h1 {
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
 }
 .nav a {
-  color: #fff;
+  color: #555;
   text-decoration: none;
-  margin-left: 20px;
-  opacity: 0.75;
-  font-size: 15px;
+  margin-left: 24px;
+  font-size: 14px;
+  transition: color 0.15s;
+}
+.nav a:hover {
+  color: #3b6ef5;
 }
 .nav a.router-link-active {
-  opacity: 1;
+  color: #3b6ef5;
   font-weight: 600;
-  border-bottom: 2px solid #fff;
-  padding-bottom: 2px;
 }
 .app-content {
-  max-width: 960px;
+  max-width: 1320px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 28px 24px;
 }
 </style>

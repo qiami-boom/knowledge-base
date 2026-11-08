@@ -1,6 +1,7 @@
 package com.example.kb.agent;
 
 import com.example.kb.service.AiService;
+import com.example.kb.service.AuthService;
 import com.example.kb.service.dto.AgentChatRequest;
 import com.example.kb.service.dto.AgentMessage;
 import com.example.kb.service.dto.AgentReply;
@@ -34,10 +35,15 @@ public class AgentService {
             你是个人知识库的 Agent。你可以调用工具来完成任务，不要凭空编造知识库里的数据。
             规则：
             1. 用户给出长文本并想整理 → 调 extract_knowledge
-            2. 用户问今天该复习什么 → 调 list_due_cards
-            3. 用户问以前学过/记过什么 → 调 search_knowledge
-            4. 拿到工具结果后，用中文自然地告诉用户结论，不要把原始 JSON 复述给他
-            5. 一次可以调多个工具，但不要重复调同一个；工具报错了就告诉用户，别硬试
+            2. 用户问今天该复习什么、有几张卡到期 → 调 list_due_cards
+            3. 用户问之前复习过什么、复习了哪些卡 → 调 list_reviewed_cards
+            4. 用户问以前学过/记过什么内容 → 调 search_knowledge
+            5. 用户想展开看某一条、要完整正文 → 调 read_knowledge，id 从搜索结果的 [id=数字] 里取
+            6. 用户说要"给这条出张卡/加进复习/我想复习它" → 调 create_review_cards
+            7. 拿到工具结果后，用中文自然地告诉用户结论，不要把原始 JSON 复述给他
+            8. 一次可以调多个工具，但不要重复调同一个；工具报错了就告诉用户，别硬试
+            9. 回复用纯文本：不要用 ** 加粗、# 标题、` 代码围栏这些 Markdown 标记；
+               需要分点时用「1. 2. 3.」的中文序号，需要强调时直接写清楚，不用符号
             """;
 
     @Autowired
@@ -46,9 +52,14 @@ public class AgentService {
     @Autowired
     private AgentToolRegistry registry;
 
+    @Autowired
+    private AuthService authService;
+
     public AgentReply chat(AgentChatRequest request, Long userId) {
         List<Map<String, Object>> messages = new ArrayList<>();
-        messages.add(Map.of("role", "system", "content", SYSTEM_PROMPT));
+        // 风格指令拼在最前面：模型对开头和中段的注意力最强，放末尾容易被忽略
+        messages.add(Map.of("role", "system",
+                "content", styleInstruction(userId, request.customRule()) + SYSTEM_PROMPT));
 
         if (request.history() != null) {
             for (AgentMessage m : request.history()) {
@@ -103,6 +114,49 @@ public class AgentService {
 
         log.warn("[Agent] 超过 {} 轮仍未收尾，强制返回", MAX_ROUNDS);
         return new AgentReply("这个问题需要好几步，我先停在这里，你可以拆开一次只做一件事。", cards, steps);
+    }
+
+    /**
+     * 按用户设置的回答风格追加一段指令。
+     * 规则存在 user 表里（EXPLAIN / EXAM / SOCRATIC / CUSTOM），改一次对所有对话生效。
+     * CUSTOM 的具体文案不存库，由前端随请求带过来，空着就退回讲解模式。
+     */
+    private String styleInstruction(Long userId, String customRule) {
+        String rule;
+        try {
+            rule = authService.findById(userId).agentRule();
+        } catch (Exception e) {
+            log.warn("[Agent] 读取回答风格失败，退回默认：{}", e.getMessage());
+            return "";
+        }
+        if (rule == null) {
+            rule = "EXPLAIN";
+        }
+
+        return switch (rule) {
+            case "EXAM" -> "【必须遵守】考试模式：这一整轮回复里，禁止直接给出答案、结论或解释。"
+                    + "你只能抛出一个问题让用户先回答，问句必须以问号结尾。\n";
+            case "SOCRATIC" -> "【必须遵守】苏格拉底模式：用连续反问引导用户自己推理，"
+                    + "禁止直接给现成结论，每轮回复至少包含一个问号。\n";
+            case "CUSTOM" -> customInstruction(customRule);
+            default -> "回复风格：讲解模式。像老师一样把原理讲清楚，必要时举例。\n";
+        };
+    }
+
+    /**
+     * 自定义风格：用户自己的原话直接进 system prompt。
+     * 限制 200 字：再长会挤掉后面的工具规则，模型反而不会调工具了。
+     * 用户写的是自己的偏好，不需要防范注入——他只能影响自己的对话。
+     */
+    private String customInstruction(String customRule) {
+        String text = customRule == null ? "" : customRule.trim();
+        if (text.isBlank()) {
+            return "回复风格：讲解模式。像老师一样把原理讲清楚，必要时举例。\n";
+        }
+        if (text.length() > 200) {
+            text = text.substring(0, 200);
+        }
+        return "【必须遵守】这一轮按用户设定的风格回复：" + text + "\n";
     }
 
     /** 把各个工具的说明书拼成 OpenAI 的 tools 数组 */

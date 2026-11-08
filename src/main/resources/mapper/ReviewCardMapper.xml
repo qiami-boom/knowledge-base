@@ -38,6 +38,32 @@
         WHERE c.knowledge_id = #{knowledgeId} AND k.user_id = #{userId}
     </select>
 
+    <!--查当前用户已经复习过的卡，按最近复习时间倒序-->
+    <select id="findReviewed" resultType="com.example.kb.review.ReviewCard">
+        SELECT c.* FROM review_card c
+        JOIN knowledge k ON k.id = c.knowledge_id
+        WHERE k.user_id = #{userId} AND c.last_reviewed_at IS NOT NULL
+        ORDER BY c.last_reviewed_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <!--按阶段统计当前用户的卡片数量，用于"掌握现状"-->
+    <select id="countByStage" resultType="java.util.Map">
+        SELECT c.stage AS stage, COUNT(*) AS cnt FROM review_card c
+        JOIN knowledge k ON k.id = c.knowledge_id
+        WHERE k.user_id = #{userId}
+        GROUP BY c.stage
+    </select>
+
+    <!--每条知识的最高阶，用于列表里显示"复习到哪了"-->
+    <select id="maxStageByKnowledge" resultType="java.util.Map">
+        SELECT c.knowledge_id AS knowledgeId, MAX(c.stage) AS maxStage, COUNT(*) AS cnt
+        FROM review_card c
+        JOIN knowledge k ON k.id = c.knowledge_id
+        WHERE k.user_id = #{userId}
+        GROUP BY c.knowledge_id
+    </select>
+
     <!--
         更新复习计划。
         归属已在 ReviewService.review 里通过 findById(id, userId) 校验过，

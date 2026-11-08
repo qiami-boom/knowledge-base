@@ -1,6 +1,7 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getAllKnowledge, addKnowledge ,importKnowledge} from '../api/knowledge'
+import { getStats } from '../api/review'
 import KnowledgeCard from '../components/KnowledgeCard.vue'
 import { describeError } from '../utils/error'
 import ReviewBanner from '../components/ReviewBanner.vue'
@@ -8,6 +9,35 @@ import ReviewBanner from '../components/ReviewBanner.vue'
 const loadError = ref('')      // 非空 = 列表加载失败
 const list = ref([])
 const loading = ref(true)
+
+// 掌握现状：按复习阶段统计的卡片分布
+const stats = ref(null)
+
+const segments = computed(() => {
+  if (!stats.value) return []
+  const s = stats.value
+  return [
+    { key: 'initial',     label: '初记 1-2 阶', value: s.initial,     cls: 'fill-initial' },
+    { key: 'strengthen',  label: '强化 3-4 阶', value: s.strengthen,  cls: 'fill-strengthen' },
+    { key: 'consolidate', label: '巩固 5-6 阶', value: s.consolidate, cls: 'fill-consolidate' },
+    { key: 'mastered',    label: '熟识 7 阶',   value: s.mastered,    cls: 'fill-mastered' }
+  ]
+})
+
+const pct = (value) => {
+  const total = stats.value?.total || 0
+  if (total === 0) return '0%'
+  return Math.round((value / total) * 100) + '%'
+}
+
+// 独立加载：统计失败不能影响知识列表
+const loadStats = async () => {
+  try {
+    stats.value = await getStats()
+  } catch (e) {
+    console.warn('掌握现状加载失败', e)
+  }
+}
 
 // 新增表单相关
 const showForm = ref(false)
@@ -25,6 +55,7 @@ const form = ref({
 })
 
 onMounted(async () => {
+  loadStats()
   try {
     const data = await getAllKnowledge()
     list.value = data
@@ -76,6 +107,21 @@ const handleImport = async (event) => {
   <div>
     <!-- 今日复习：首页第一优先动作 -->
     <ReviewBanner />
+
+    <!-- 掌握现状：按复习阶段统计的卡片分布 -->
+    <div v-if="segments.length" class="status-card">
+      <div class="status-head">
+        <span>掌握现状</span>
+        <span class="status-total">{{ stats.total }} 张复习卡</span>
+      </div>
+      <div class="status-row" v-for="seg in segments" :key="seg.key">
+        <span class="seg-label">{{ seg.label }}</span>
+        <div class="seg-track">
+          <div class="seg-fill" :class="seg.cls" :style="{ width: pct(seg.value) }"></div>
+        </div>
+        <span class="seg-value">{{ seg.value }}</span>
+      </div>
+    </div>
 
     <!-- 工具栏：新增为主，导入为辅 -->
     <div class="toolbar">
@@ -161,7 +207,7 @@ const handleImport = async (event) => {
   text-align: right;
 }
 .add-btn {
-  background: #1976d2;
+  background: #3b6ef5;
   color: white;
   border: none;
   padding: 10px 20px;
@@ -170,7 +216,7 @@ const handleImport = async (event) => {
   font-size: 14px;
 }
 .add-btn:hover {
-  background: #1565c0;
+  background: #2f5cd8;
 }
 .card-list {
   display: grid;
@@ -232,7 +278,7 @@ const handleImport = async (event) => {
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #1976d2;
+  border-color: #3b6ef5;
 }
 .form-row {
   display: flex;
@@ -260,11 +306,11 @@ const handleImport = async (event) => {
   color: #666;
 }
 .save-btn {
-  background: #1976d2;
+  background: #3b6ef5;
   color: white;
 }
 .save-btn:hover {
-  background: #1565c0;
+  background: #2f5cd8;
 }
 
 .import-btn {
@@ -286,4 +332,62 @@ const handleImport = async (event) => {
   cursor: not-allowed;
 }
 .error-tip { color: #c62828; }
+
+/* 掌握现状卡片 */
+.status-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.status-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #222;
+  margin-bottom: 12px;
+}
+.status-total {
+  font-size: 12px;
+  font-weight: 400;
+  color: #888;
+}
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.seg-label {
+  width: 92px;
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #666;
+}
+.seg-track {
+  flex: 1;
+  height: 10px;
+  background: #f1f3f5;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.seg-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.3s;
+}
+.fill-initial { background: #a5b4fc; }
+.fill-strengthen { background: #748ffc; }
+.fill-consolidate { background: #4c6ef5; }
+.fill-mastered { background: #3b5bdb; }
+.seg-value {
+  width: 32px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 13px;
+  color: #333;
+}
 </style>
