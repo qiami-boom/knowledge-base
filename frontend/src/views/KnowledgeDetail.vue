@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import AppIcon from '../components/AppIcon.vue'
+import CondenseDialog from '../components/CondenseDialog.vue'
 import { getKnowledgeById, updateKnowledge, deleteKnowledge, condenseKnowledge } from '../api/knowledge'
 import { generateCards } from '../api/review'
 import { describeError } from '../utils/error'
@@ -15,6 +16,7 @@ const loading = ref(true)
 // 是否处于编辑模式：false = 只读查看，true = 表单编辑
 const editing = ref(false)
 const condensing = ref(false)
+const condenseDialogOpen = ref(false)
 const condenseMsg = ref('')
 // 编辑草稿：独立于 knowledge，取消时整份丢弃，不污染原数据
 const editForm = ref({})
@@ -109,21 +111,32 @@ const handleDelete = async () => {
   }
 }
 
-const handleCondense = async () => {
+const handleCondense = () => {
   if (condensing.value) return
-  if (!confirm('AI 将重写这条知识的标题、正文和摘要，原内容会被覆盖。继续吗？')) return
+  condenseDialogOpen.value = true
+}
 
+const confirmCondense = async (keepOriginal) => {
+  if (condensing.value) return
   condensing.value = true
   condenseMsg.value = ''
   try {
-    knowledge.value = await condenseKnowledge(route.params.id)
-    condenseMsg.value = 'AI 已精简这张知识卡，个人备注和评分保持不变。'
+    knowledge.value = await condenseKnowledge(route.params.id, keepOriginal)
+    condenseDialogOpen.value = false
+    condenseMsg.value = keepOriginal
+        ? 'AI 已生成精简版并放在原文上方，个人备注和评分保持不变。'
+        : 'AI 已精简这张知识卡，个人备注和评分保持不变。'
   } catch (error) {
     console.error('AI 精简知识卡失败:', error)
+    condenseDialogOpen.value = false
     condenseMsg.value = describeError(error, 'AI 精简失败，请稍后重试')
   } finally {
     condensing.value = false
   }
+}
+
+const cancelCondense = () => {
+  if (!condensing.value) condenseDialogOpen.value = false
 }
 
   const generating = ref(false)      // 独立 loading：AI 可能要十几秒
@@ -258,6 +271,14 @@ const handleCondense = async () => {
       </template>
     </div>
     <p v-else>未找到该知识</p>
+
+    <CondenseDialog
+        :open="condenseDialogOpen"
+        :target-title="knowledge?.title || ''"
+        :processing="condensing"
+        @cancel="cancelCondense"
+        @confirm="confirmCondense"
+    />
   </div>
 </template>
 

@@ -35,6 +35,7 @@ public class EditKnowledgeTool implements AgentTool {
         return "根据明确的编辑指令修改一张已入库知识卡，可精简、改写、纠正标题和正文。"
                 + "只有用户明确要求修改已有知识时才能使用。"
                 + "id 必须先通过 search_knowledge 或 read_knowledge 确认，不要猜。"
+                + "keepOriginal=true 时保留原文并把精简版放在上方；用户明确要求保留原文时使用。"
                 + "该工具只修改标题、正文、摘要、分类和标签，不会改个人备注、评分、来源和归属用户。";
     }
 
@@ -50,6 +51,10 @@ public class EditKnowledgeTool implements AgentTool {
                         "instruction", Map.of(
                                 "type", "string",
                                 "description", "用户要求的编辑指令，例如：精简正文并保留代码；把标题改成更具体的说法"
+                        ),
+                        "keepOriginal", Map.of(
+                                "type", "boolean",
+                                "description", "是否保留原正文。用户要求保留原文或保留旧内容时为 true，否则为 false"
                         )
                 ),
                 "required", List.of("knowledgeId", "instruction")
@@ -62,6 +67,7 @@ public class EditKnowledgeTool implements AgentTool {
             JsonNode args = mapper.readTree(argumentsJson);
             long knowledgeId = args.path("knowledgeId").asLong(0);
             String instruction = args.path("instruction").asText("").trim();
+            boolean keepOriginal = args.path("keepOriginal").asBoolean(false);
 
             if (knowledgeId <= 0) {
                 return ToolResult.text("没有拿到有效的知识 id。");
@@ -70,11 +76,12 @@ public class EditKnowledgeTool implements AgentTool {
                 return ToolResult.text("没有拿到明确的编辑指令。");
             }
 
-            Knowledge updated = knowledgeService.aiEdit(knowledgeId, instruction, userId);
+            Knowledge updated = knowledgeService.aiEdit(knowledgeId, instruction, keepOriginal, userId);
             return ToolResult.text(
                     "已编辑知识卡 [id=" + updated.getId() + "]。\n"
                             + "新标题：" + updated.getTitle() + "\n"
                             + "新摘要：" + (updated.getSummary() == null ? "无" : updated.getSummary()) + "\n"
+                            + (keepOriginal ? "原文已保留在正文下方。\n" : "")
                             + "个人备注、评分、来源和归属用户均未改变。"
             );
         } catch (Exception e) {

@@ -20,8 +20,8 @@ export const updateKnowledge = (id, data) => {
 }
 
 // 让 AI 精简一张已有知识卡
-export const condenseKnowledge = (id) => {
-    return request.post(`/knowledges/${id}/condense`, null, {
+export const condenseKnowledge = (id, keepOriginal = false) => {
+    return request.post(`/knowledges/${id}/condense`, { keepOriginal }, {
         timeout: 120000
     })
 }

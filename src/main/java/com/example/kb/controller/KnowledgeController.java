@@ -5,6 +5,7 @@ import com.example.kb.entity.Knowledge;
 import com.example.kb.mapper.KnowledgeMapper;
 import com.example.kb.review.ReviewService;
 import com.example.kb.service.KnowledgeService;
+import com.example.kb.service.dto.CondenseKnowledgeRequest;
 import com.example.kb.service.dto.KnowledgeRequest;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -61,8 +62,16 @@ public class KnowledgeController {
     }
 
     @PostMapping("/{id}/condense")
-    public Result<Knowledge> condense(@PathVariable Long id, HttpServletRequest httpRequest) {
-        return Result.success(knowledgeService.condense(id, uid(httpRequest)));
+    public Result<Knowledge> condense(
+            @PathVariable Long id,
+            @RequestBody(required = false) CondenseKnowledgeRequest request,
+            HttpServletRequest httpRequest) {
+        boolean keepOriginal = request != null && request.shouldKeepOriginal();
+        return Result.success(knowledgeService.condense(
+                id,
+                keepOriginal,
+                uid(httpRequest)
+        ));
     }
 
     @DeleteMapping("/{id}")

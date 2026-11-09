@@ -41,7 +41,8 @@ public class AgentService {
             5. 用户想展开看某一条、要完整正文 → 调 read_knowledge，id 从搜索结果的 [id=数字] 里取
             6. 用户说要"给这条出张卡/加进复习/我想复习它" → 调 create_review_cards
             7. 用户要求精简、改写、纠正或更新已有知识卡 → 先用 search_knowledge/read_knowledge 确认 id，再调 edit_knowledge；
-               编辑指令要忠实表达用户要求，不得只凭标题猜 id，也不得把编辑做成新建一条
+               编辑指令要忠实表达用户要求，不得只凭标题猜 id，也不得把编辑做成新建一条；
+               用户明确说“保留原文/旧内容”时，把 keepOriginal 设为 true
             8. 拿到工具结果后，用中文自然地告诉用户结论，不要把原始 JSON 复述给他
             9. 一次可以调多个工具，但不要重复调同一个；工具报错了就告诉用户，别硬试
             10. 回复用纯文本：不要用 ** 加粗、# 标题、` 代码围栏这些 Markdown 标记；

@@ -6,6 +6,7 @@ import { describeError } from '../utils/error'
 import KnowledgeCard from '../components/KnowledgeCard.vue'
 import ReviewBanner from '../components/ReviewBanner.vue'
 import AppIcon from '../components/AppIcon.vue'
+import CondenseDialog from '../components/CondenseDialog.vue'
 
 const loadError = ref('')
 const list = ref([])
@@ -21,6 +22,8 @@ const fileInput = ref(null)
 const importing = ref(false)
 const saving = ref(false)
 const condensingId = ref(null)
+const condenseTarget = ref(null)
+const condenseDialogOpen = ref(false)
 const form = ref(emptyForm())
 
 function emptyForm() {
@@ -168,23 +171,38 @@ const handleImport = async (event) => {
   }
 }
 
-const handleCondense = async (item) => {
+const handleCondense = (item) => {
   if (condensingId.value) return
-  if (!confirm(`AI 将精简「${item.title}」的标题和正文，原内容会被覆盖。继续吗？`)) return
+  condenseTarget.value = item
+  condenseDialogOpen.value = true
+}
 
+const confirmCondense = async (keepOriginal) => {
+  const item = condenseTarget.value
+  if (!item || condensingId.value) return
   condensingId.value = item.id
   try {
-    const updated = await condenseKnowledge(item.id)
+    const updated = await condenseKnowledge(item.id, keepOriginal)
     list.value = list.value.map((knowledge) =>
         knowledge.id === updated.id ? updated : knowledge
     )
+    condenseDialogOpen.value = false
+    condenseTarget.value = null
     alert(`AI 精简完成：${updated.title}`)
   } catch (error) {
     console.error('AI 精简知识卡失败:', error)
+    condenseDialogOpen.value = false
+    condenseTarget.value = null
     alert(`AI 精简失败：${describeError(error, '请稍后重试')}`)
   } finally {
     condensingId.value = null
   }
+}
+
+const cancelCondense = () => {
+  if (condensingId.value) return
+  condenseDialogOpen.value = false
+  condenseTarget.value = null
 }
 </script>
 
@@ -394,6 +412,14 @@ const handleCondense = async (item) => {
         </div>
       </form>
     </div>
+
+    <CondenseDialog
+        :open="condenseDialogOpen"
+        :target-title="condenseTarget?.title || ''"
+        :processing="Boolean(condensingId)"
+        @cancel="cancelCondense"
+        @confirm="confirmCondense"
+    />
   </div>
 </template>
 

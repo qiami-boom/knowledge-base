@@ -22,6 +22,8 @@ import java.util.List;
 @Service
 public class KnowledgeService {
 
+    private static final String ORIGINAL_CONTENT_MARKER = "\n\n---\n\n## 原文\n\n";
+
     @Autowired
     private KnowledgeMapper knowledgeMapper;
 
@@ -105,10 +107,11 @@ public class KnowledgeService {
     /**
      * 使用固定指令精简一张知识卡。
      */
-    public Knowledge condense(Long id, Long userId) {
+    public Knowledge condense(Long id, boolean keepOriginal, Long userId) {
         return aiEdit(
                 id,
                 "在不丢失关键事实、代码、命令和边界条件的前提下精简这张知识卡，去掉重复表达和对话痕迹，保留 Markdown 结构。",
+                keepOriginal,
                 userId
         );
     }
@@ -117,7 +120,7 @@ public class KnowledgeService {
      * AI 编辑已有知识卡。
      * 只允许修改 title/content/summary/category/tags，其他人工字段保持不变。
      */
-    public Knowledge aiEdit(Long id, String instruction, Long userId) {
+    public Knowledge aiEdit(Long id, String instruction, boolean keepOriginal, Long userId) {
         if (instruction == null || instruction.isBlank()) {
             throw new BusinessException(400, "编辑指令不能为空");
         }
@@ -140,8 +143,23 @@ public class KnowledgeService {
             throw new BusinessException(502, "AI 生成的内容超出长度限制，请重试");
         }
 
+        String condensedContent = condensedContentOnly(edit.content().trim());
+        if (condensedContent.isBlank()) {
+            throw new BusinessException(502, "AI 生成的精简内容为空，请重试");
+        }
+
+        String nextContent = condensedContent;
+        if (keepOriginal) {
+            String original = extractOriginalContent(existing.getContent());
+            nextContent = "## AI 精简版\n\n" + condensedContent
+                    + ORIGINAL_CONTENT_MARKER + original;
+        }
+        if (nextContent.length() > 20000) {
+            throw new BusinessException(502, "保留原文后内容超过长度限制，请选择替换原文");
+        }
+
         existing.setTitle(edit.title().trim());
-        existing.setContent(edit.content().trim());
+        existing.setContent(nextContent);
         existing.setSummary(trimToNull(edit.summary(), 200));
         if (edit.category() != null && !edit.category().isBlank()) {
             existing.setCategory(trimToNull(edit.category(), 50));
@@ -213,6 +231,22 @@ public class KnowledgeService {
         }
         String trimmed = value.trim();
         return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
+    }
+
+    private String extractOriginalContent(String content) {
+        if (content == null || content.isBlank()) {
+            return "";
+        }
+        int markerIndex = content.lastIndexOf(ORIGINAL_CONTENT_MARKER);
+        return markerIndex >= 0
+                ? content.substring(markerIndex + ORIGINAL_CONTENT_MARKER.length())
+                : content;
+    }
+
+    private String condensedContentOnly(String content) {
+        if (content == null) return "";
+        int headingIndex = content.indexOf("## 原文");
+        return (headingIndex >= 0 ? content.substring(0, headingIndex) : content).strip();
     }
 
 }

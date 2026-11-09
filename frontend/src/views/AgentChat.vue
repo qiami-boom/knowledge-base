@@ -122,78 +122,196 @@ const barClass = (score) => {
 // 注意它是"不让历史消失"，不是"让 Agent 有记忆"——抽取本身是单轮的。
 // key 必须带用户 id：localStorage 是浏览器级别的，不区分账号会把 A 的对话给 B 看。
 const MAX_MESSAGES = 30
-let storageKey = 'kb-agent-messages-anon'
+const conversations = ref([])
+const activeConversationId = ref('')
+let conversationsKey = 'kb-agent-conversations-anon'
+let activeConversationKey = 'kb-agent-active-anon'
+let legacyMessagesKey = 'kb-agent-messages-anon'
 let customRuleKey = 'kb-agent-custom-rule-anon'
 
-// 首屏：agent 先开口。
-// 这类"主动性"不需要常驻进程，浏览器一打开就有一次请求，足以支撑叙事。
+const cloneMessages = (items) => JSON.parse(JSON.stringify(items || []))
+
+const conversationTitle = (items) => {
+  const firstUser = (items || []).find((message) => message.role === 'user' && message.text)
+  const text = firstUser?.text?.replace(/\s+/g, ' ').trim() || ''
+  return text ? (text.length > 16 ? `${text.slice(0, 16)}…` : text) : '新任务'
+}
+
+const persistConversations = () => {
+  const active = conversations.value.find((item) => item.id === activeConversationId.value)
+  if (active) {
+    active.messages = cloneMessages(messages.value.slice(-MAX_MESSAGES))
+    active.title = conversationTitle(active.messages)
+    active.updatedAt = Date.now()
+  }
+
+  localStorage.setItem(conversationsKey, JSON.stringify(
+      conversations.value.map((item) => ({
+        ...item,
+        messages: item.messages.slice(-MAX_MESSAGES)
+      }))
+  ))
+  if (activeConversationId.value) {
+    localStorage.setItem(activeConversationKey, activeConversationId.value)
+  }
+}
+
+const activateConversation = async (conversation) => {
+  activeConversationId.value = conversation.id
+  messages.value = cloneMessages(conversation.messages)
+  lastScrollTop.value = 0
+  persistConversations()
+  await scrollToBottom()
+}
+
+const restoreConversations = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(conversationsKey) || '[]')
+    if (!Array.isArray(saved) || saved.length === 0) return false
+
+    conversations.value = saved
+        .filter((item) => item && item.id && Array.isArray(item.messages))
+        .map((item) => ({
+          ...item,
+          title: item.title || conversationTitle(item.messages),
+          messages: item.messages.slice(-MAX_MESSAGES)
+        }))
+    if (conversations.value.length === 0) return false
+
+    const savedActiveId = localStorage.getItem(activeConversationKey)
+    const active = conversations.value.find((item) => item.id === savedActiveId)
+        || conversations.value[0]
+    activeConversationId.value = active.id
+    messages.value = cloneMessages(active.messages)
+    scrollToBottom()
+    return true
+  } catch (error) {
+    console.warn('恢复对话任务失败，忽略损坏的本地数据', error)
+    return false
+  }
+}
+
+const migrateLegacyConversation = () => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(legacyMessagesKey) || '[]')
+    if (!Array.isArray(saved) || saved.length === 0) return false
+    const conversation = {
+      id: `legacy-${Date.now()}`,
+      title: conversationTitle(saved),
+      messages: saved.slice(-MAX_MESSAGES),
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    }
+    conversations.value = [conversation]
+    activeConversationId.value = conversation.id
+    messages.value = cloneMessages(conversation.messages)
+    localStorage.removeItem(legacyMessagesKey)
+    persistConversations()
+    scrollToBottom()
+    return true
+  } catch (error) {
+    localStorage.removeItem(legacyMessagesKey)
+    return false
+  }
+}
+
+// 首屏：优先恢复任务列表，其次迁移旧版单会话，最后创建第一条任务。
 onMounted(async () => {
-  // 右栏列表独立加载，不阻塞对话区的历史恢复
   loadKnowledge()
   loadRule()
 
   try {
     const info = await currentUser()
-    storageKey = `kb-agent-messages-${info.id}`
+    conversationsKey = `kb-agent-conversations-${info.id}`
+    activeConversationKey = `kb-agent-active-${info.id}`
+    legacyMessagesKey = `kb-agent-messages-${info.id}`
     customRuleKey = `kb-agent-custom-rule-${info.id}`
     customRule.value = localStorage.getItem(customRuleKey) || ''
   } catch (e) {
-    storageKey = 'kb-agent-messages-anon'   // 未登录时兜底，正常会被路由守卫拦住
+    conversationsKey = 'kb-agent-conversations-anon'
+    activeConversationKey = 'kb-agent-active-anon'
+    legacyMessagesKey = 'kb-agent-messages-anon'
   }
   localStorage.removeItem('kb-agent-messages')   // 清掉旧版本不带账号的 key
 
-  // 有历史就先恢复，不再打首屏问候
-  const saved = localStorage.getItem(storageKey)
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved)
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        messages.value = parsed
-        scrollToBottom()
-        return
-      }
-    } catch (e) {
-      // 本地存储可能被手动改坏，解析失败就丢掉，不能让页面白屏
-      localStorage.removeItem(storageKey)
-    }
-  }
+  if (restoreConversations() || migrateLegacyConversation()) return
 
+  let welcome
   try {
     const due = await getDueCards()
     const count = Array.isArray(due) ? due.length : 0
-    messages.value.push({
-      role: 'agent',
-      text: count > 0
-          ? `今天有 ${count} 张卡到期。你也可以把一段对话粘进来，我帮你从中抽知识点。`
-          : '今天没有到期的卡。把一段对话粘进来，我帮你从中抽知识点。',
-      drafts: []
-    })
+    welcome = count > 0
+        ? `今天有 ${count} 张卡到期。你也可以把一段对话粘进来，我帮你从中抽知识点。`
+        : '今天没有到期的卡。把一段对话粘进来，我帮你从中抽知识点。'
   } catch (e) {
-    // 复习接口挂了也不能让对话页打不开，退化成一句普通欢迎语
-    messages.value.push({
-      role: 'agent',
-      text: '把一段对话粘进来，我帮你从中抽知识点。',
-      drafts: []
-    })
+    welcome = '把一段对话粘进来，我帮你从中抽知识点。'
   }
+
+  const firstConversation = {
+    id: `conversation-${Date.now()}`,
+    title: '新任务',
+    messages: [{
+      role: 'agent',
+      text: welcome,
+      drafts: []
+    }],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }
+  conversations.value = [firstConversation]
+  activeConversationId.value = firstConversation.id
+  messages.value = cloneMessages(firstConversation.messages)
+  persistConversations()
+  scrollToBottom()
 })
 
 // 消息一变就落盘。deep 才能监听到 drafts 里 state 这种嵌套字段的修改
-watch(messages, (val) => {
-  if (!storageKey) return
-  localStorage.setItem(storageKey, JSON.stringify(val.slice(-MAX_MESSAGES)))
+watch(messages, () => {
+  if (activeConversationId.value) {
+    persistConversations()
+  }
 }, { deep: true })
 
-// 只清前端记录，不动库里已入库的知识
+const switchConversation = async (id) => {
+  if (id === activeConversationId.value) return
+  persistConversations()
+  const conversation = conversations.value.find((item) => item.id === id)
+  if (conversation) {
+    await activateConversation(conversation)
+  }
+}
+
+const newConversation = async () => {
+  persistConversations()
+  const conversation = {
+    id: `conversation-${Date.now()}`,
+    title: '新任务',
+    messages: [{
+      role: 'agent',
+      text: '新任务已建立。你可以继续问知识库、复习安排，或者粘贴内容让我整理。',
+      drafts: []
+    }],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }
+  conversations.value.unshift(conversation)
+  activeConversationId.value = conversation.id
+  messages.value = cloneMessages(conversation.messages)
+  lastScrollTop.value = 0
+  persistConversations()
+  await scrollToBottom()
+}
+
+// 只清当前任务的前端记录，不动其他任务和库里已入库的知识
 const clearChat = () => {
   menuOpen.value = false
-  if (!window.confirm('清空当前对话？已入库的知识不受影响')) return
+  if (!window.confirm('清空当前对话任务？其他任务和已入库的知识不受影响')) return
   messages.value = [{
     role: 'agent',
     text: '对话已清空。把一段对话粘进来吧。',
     drafts: []
   }]
-  localStorage.removeItem(storageKey)
+  persistConversations()
 }
 
 const scrollToBottom = async () => {
@@ -374,12 +492,26 @@ const extractUrl = async (url) => {
       </div>
       <div class="page-actions">
         <span class="session-status"><i></i>会话已自动保存</span>
-        <button class="btn btn-ghost" type="button" @click="clearChat">
+        <button class="btn btn-ghost" type="button" @click="newConversation">
           <AppIcon name="edit" :size="15" />
-          新对话
+          新建对话
         </button>
       </div>
     </header>
+
+    <nav v-if="conversations.length" class="conversation-tabs" aria-label="对话任务">
+      <button
+          v-for="conversation in conversations"
+          :key="conversation.id"
+          class="conversation-tab"
+          :class="{ active: conversation.id === activeConversationId }"
+          type="button"
+          :title="conversation.title"
+          @click="switchConversation(conversation.id)"
+      >
+        {{ conversation.title }}
+      </button>
+    </nav>
 
     <div class="chat-page">
     <div class="chat-main">
@@ -478,7 +610,7 @@ const extractUrl = async (url) => {
                 <span class="menu-hint">.md / .jsonl / .docx</span>
               </button>
               <button class="menu-item" type="button" @click="clearChat">
-                <span>清空对话</span>
+                <span>清空当前对话</span>
               </button>
             </div>
           </div>
@@ -994,11 +1126,53 @@ const extractUrl = async (url) => {
   background: #48a47d;
 }
 
+.conversation-tabs {
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  margin: -4px 0 10px;
+  padding-bottom: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.conversation-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.conversation-tab {
+  flex-shrink: 0;
+  max-width: 180px;
+  height: 30px;
+  padding: 0 11px;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.conversation-tab:hover {
+  border-color: #bdcaDD;
+  color: var(--color-ink-soft);
+}
+
+.conversation-tab.active {
+  border-color: #b9cbf1;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 650;
+}
+
 .chat-page {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 18px;
-  height: calc(100vh - 176px);
+  height: calc(100vh - 224px);
   min-height: 620px;
 }
 
@@ -1261,7 +1435,7 @@ const extractUrl = async (url) => {
   }
 
   .chat-page {
-    height: calc(100dvh - 238px);
+    height: calc(100dvh - 282px);
     min-height: 0;
   }
 
