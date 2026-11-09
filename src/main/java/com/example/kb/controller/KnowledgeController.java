@@ -60,6 +60,11 @@ public class KnowledgeController {
         return Result.success(knowledgeService.update(id,request, uid(httpRequest)));
     }
 
+    @PostMapping("/{id}/condense")
+    public Result<Knowledge> condense(@PathVariable Long id, HttpServletRequest httpRequest) {
+        return Result.success(knowledgeService.condense(id, uid(httpRequest)));
+    }
+
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest){
         knowledgeService.delete(id, uid(httpRequest));

@@ -6,6 +6,7 @@ import com.example.kb.config.BusinessException;
 import com.example.kb.entity.Knowledge;
 
 import com.example.kb.mapper.KnowledgeMapper;
+import com.example.kb.service.dto.KnowledgeAiEditResult;
 import com.example.kb.service.dto.KnowledgeRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,9 @@ public class KnowledgeService {
 
     @Autowired
     private KnowledgeMapper knowledgeMapper;
+
+    @Autowired
+    private AiService aiService;
 
     /** 当前用户的正式知识列表（status=ACTIVE） */
     public List<Knowledge> findAll(Long userId) {
@@ -54,6 +58,9 @@ public class KnowledgeService {
                 request.source() == null || request.source().isBlank() ? "MANUAL" : request.source()
                 //来源判空或无来源字段设置为MANUAL，无问题就设置正确来源
         );
+        knowledge.setCategory(request.category());
+        knowledge.setTags(request.tags());
+        knowledge.setStarRating(request.starRating() == null ? 0 : request.starRating());
         knowledge.setPersonalNote(request.personalNote());
         knowledge.setAiScore(0);
 
@@ -89,6 +96,59 @@ public class KnowledgeService {
                 request.starRating() == null ? 0 : request.starRating()
         );
         existing.setPersonalNote(request.personalNote());
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        knowledgeMapper.update(existing);
+        return existing;
+    }
+
+    /**
+     * 使用固定指令精简一张知识卡。
+     */
+    public Knowledge condense(Long id, Long userId) {
+        return aiEdit(
+                id,
+                "在不丢失关键事实、代码、命令和边界条件的前提下精简这张知识卡，去掉重复表达和对话痕迹，保留 Markdown 结构。",
+                userId
+        );
+    }
+
+    /**
+     * AI 编辑已有知识卡。
+     * 只允许修改 title/content/summary/category/tags，其他人工字段保持不变。
+     */
+    public Knowledge aiEdit(Long id, String instruction, Long userId) {
+        if (instruction == null || instruction.isBlank()) {
+            throw new BusinessException(400, "编辑指令不能为空");
+        }
+        if (instruction.length() > 500) {
+            throw new BusinessException(400, "编辑指令不能超过 500 个字符");
+        }
+
+        Knowledge existing = findById(id, userId);
+        if (!"ACTIVE".equals(existing.getStatus())) {
+            throw new BusinessException(400, "只有已入库的知识可以交给 AI 编辑");
+        }
+
+        KnowledgeAiEditResult edit = aiService.editKnowledge(existing, instruction.trim());
+        if (edit == null
+                || edit.title() == null || edit.title().isBlank()
+                || edit.content() == null || edit.content().isBlank()) {
+            throw new BusinessException(502, "AI 没有生成有效的知识卡，请稍后重试");
+        }
+        if (edit.title().length() > 200 || edit.content().length() > 20000) {
+            throw new BusinessException(502, "AI 生成的内容超出长度限制，请重试");
+        }
+
+        existing.setTitle(edit.title().trim());
+        existing.setContent(edit.content().trim());
+        existing.setSummary(trimToNull(edit.summary(), 200));
+        if (edit.category() != null && !edit.category().isBlank()) {
+            existing.setCategory(trimToNull(edit.category(), 50));
+        }
+        if (edit.tags() != null && !edit.tags().isBlank()) {
+            existing.setTags(trimToNull(edit.tags(), 500));
+        }
         existing.setUpdatedAt(LocalDateTime.now());
 
         knowledgeMapper.update(existing);
@@ -145,6 +205,14 @@ public class KnowledgeService {
             return List.of();
         }
         return knowledgeMapper.searchByKeyword(keyword.trim(), limit, userId);
+    }
+
+    private String trimToNull(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.length() <= maxLength ? trimmed : trimmed.substring(0, maxLength);
     }
 
 }

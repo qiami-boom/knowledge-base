@@ -49,7 +49,7 @@
     <!-- 更新：userId 取自实体（Service 已通过 findById(id,userId) 回填） -->
     <update id="update" parameterType="com.example.kb.entity.Knowledge">
         UPDATE knowledge set title = #{title},content = #{content},source = #{source},
-                             category = #{category},tags = #{tags},star_rating=#{starRating},
+                             category = #{category},tags = #{tags},summary = #{summary},star_rating=#{starRating},
                              ai_score = #{aiScore},personal_note = #{personalNote},
                              status = #{status},updated_at = #{updatedAt}
         WHERE id = #{id} AND user_id = #{userId}

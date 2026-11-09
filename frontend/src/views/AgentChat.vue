@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onActivated, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import { confirmDraft, discardDraft, extractByFile, extractByUrl, agentChat } from '../api/agent'
@@ -19,6 +19,8 @@ const input = ref('')
 const sending = ref(false)
 const errorTip = ref('')
 const listRef = ref(null)
+const lastScrollTop = ref(0)
+let hasActivated = false
 
 // 输入源：文件走左下角加号菜单，网页直接粘贴到输入框
 const fileInput = ref(null)
@@ -201,6 +203,24 @@ const scrollToBottom = async () => {
   }
 }
 
+const handleScroll = () => {
+  if (listRef.value) {
+    lastScrollTop.value = listRef.value.scrollTop
+  }
+}
+
+onActivated(async () => {
+  if (!hasActivated) {
+    hasActivated = true
+    return
+  }
+  await nextTick()
+  if (listRef.value) {
+    const maxScroll = Math.max(0, listRef.value.scrollHeight - listRef.value.clientHeight)
+    listRef.value.scrollTop = Math.min(lastScrollTop.value, maxScroll)
+  }
+})
+
 /** 是否是网址：http(s) 开头、中间没有空格。带说明文字的一律当对话处理 */
 const isUrl = (text) => /^https?:\/\/\S+$/i.test(text)
 
@@ -249,6 +269,9 @@ const send = async () => {
       drafts: (result.cards || []).map(i => ({ ...i, state: 'pending' })),
       steps: result.steps || []
     })
+    if ((result.steps || []).some((step) => step.includes('edit_knowledge'))) {
+      loadKnowledge()
+    }
   } catch (e) {
     console.error('Agent 调用失败:', e)
     errorTip.value = describeError(e, '对话失败，请稍后重试')
@@ -360,7 +383,7 @@ const extractUrl = async (url) => {
 
     <div class="chat-page">
     <div class="chat-main">
-    <div class="messages" ref="listRef">
+    <div class="messages" ref="listRef" @scroll.passive="handleScroll">
       <div v-for="(m, i) in messages" :key="i" :class="['msg', m.role]">
         <div class="bubble">{{ cleanText(m.text) }}</div>
 

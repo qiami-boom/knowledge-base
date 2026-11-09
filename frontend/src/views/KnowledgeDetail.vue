@@ -3,7 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import AppIcon from '../components/AppIcon.vue'
-import { getKnowledgeById, updateKnowledge ,deleteKnowledge } from '../api/knowledge'
+import { getKnowledgeById, updateKnowledge, deleteKnowledge, condenseKnowledge } from '../api/knowledge'
 import { generateCards } from '../api/review'
 import { describeError } from '../utils/error'
 
@@ -14,6 +14,8 @@ const knowledge = ref(null)
 const loading = ref(true)
 // 是否处于编辑模式：false = 只读查看，true = 表单编辑
 const editing = ref(false)
+const condensing = ref(false)
+const condenseMsg = ref('')
 // 编辑草稿：独立于 knowledge，取消时整份丢弃，不污染原数据
 const editForm = ref({})
 
@@ -106,6 +108,24 @@ const handleDelete = async () => {
     alert('删除失败')
   }
 }
+
+const handleCondense = async () => {
+  if (condensing.value) return
+  if (!confirm('AI 将重写这条知识的标题、正文和摘要，原内容会被覆盖。继续吗？')) return
+
+  condensing.value = true
+  condenseMsg.value = ''
+  try {
+    knowledge.value = await condenseKnowledge(route.params.id)
+    condenseMsg.value = 'AI 已精简这张知识卡，个人备注和评分保持不变。'
+  } catch (error) {
+    console.error('AI 精简知识卡失败:', error)
+    condenseMsg.value = describeError(error, 'AI 精简失败，请稍后重试')
+  } finally {
+    condensing.value = false
+  }
+}
+
   const generating = ref(false)      // 独立 loading：AI 可能要十几秒
   const reviewMsg = ref('')          // 提示文案
   const reviewMsgType = ref('')      // 'ok' | 'error'
@@ -141,6 +161,10 @@ const handleDelete = async () => {
           返回知识库
         </button>
         <div class="actions-right">
+          <button v-if="!editing" class="ai-edit-btn" type="button" :disabled="condensing" @click="handleCondense">
+            <AppIcon name="sparkles" :size="15" />
+            {{ condensing ? 'AI 精简中…' : 'AI 精简' }}
+          </button>
           <button v-if="!editing" class="edit-btn" type="button" @click="openEdit">
             <AppIcon name="edit" :size="15" />
             编辑
@@ -151,6 +175,7 @@ const handleDelete = async () => {
           </button>
         </div>
       </div>
+      <p v-if="condenseMsg" class="ai-edit-msg">{{ condenseMsg }}</p>
       <!-- 视图 A：只读（原样保留，外面包一层 template） -->
       <template v-if="!editing">
         <div class="detail-header">
@@ -548,6 +573,7 @@ const handleDelete = async () => {
 }
 
 .back-btn,
+.ai-edit-btn,
 .edit-btn,
 .delete-btn {
   display: inline-flex;
@@ -562,6 +588,22 @@ const handleDelete = async () => {
   cursor: pointer;
   font-size: 11px;
   font-weight: 600;
+}
+
+.ai-edit-btn {
+  border-color: #c9d7f5;
+  background: var(--color-primary-soft);
+  color: #3562c8;
+}
+
+.ai-edit-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: #e3edff;
+}
+
+.ai-edit-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .back-btn:hover,
@@ -634,14 +676,21 @@ const handleDelete = async () => {
 .content {
   max-width: 780px;
   color: #354151;
-  font-size: 13px;
-  line-height: 1.85;
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  font-size: 14px;
+  font-weight: 450;
+  line-height: 1.9;
 }
 
 .markdown-body h1,
 .markdown-body h2,
 .markdown-body h3 {
   color: var(--color-ink);
+}
+
+.markdown-body strong {
+  color: #1e2c3d;
+  font-weight: 700;
 }
 
 .markdown-body pre {
@@ -651,7 +700,20 @@ const handleDelete = async () => {
 }
 
 .markdown-body code {
-  background: #edf1f6;
+  padding: 2px 5px;
+  border: 1px solid #dde6f1;
+  border-radius: 4px;
+  background: #eef3fa;
+  color: #284f83;
+  font-family: "Cascadia Mono", "JetBrains Mono", Consolas, monospace;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.markdown-body pre code {
+  border: 0;
+  background: transparent;
+  color: inherit;
 }
 
 .summary-card {
@@ -730,6 +792,17 @@ const handleDelete = async () => {
   gap: 7px;
 }
 
+.ai-edit-msg {
+  max-width: 1020px;
+  margin: -7px auto 16px;
+  padding: 10px 13px;
+  border: 1px solid #d4e0f7;
+  border-radius: 6px;
+  background: #f5f8ff;
+  color: #45649f;
+  font-size: 11px;
+}
+
 @media (max-width: 760px) {
   .top-actions {
     flex-wrap: wrap;
@@ -756,6 +829,7 @@ const handleDelete = async () => {
   }
 
   .actions-right {
+    flex-wrap: wrap;
     margin-left: auto;
   }
 }

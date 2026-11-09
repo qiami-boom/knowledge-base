@@ -5,8 +5,14 @@ const props = defineProps({
   knowledge: {
     type: Object,
     required: true
+  },
+  condensing: {
+    type: Boolean,
+    default: false
   }
 })
+
+const emit = defineEmits(['condense'])
 
 const scoreClass = computed(() => {
   const score = Number(props.knowledge.aiScore || 0)
@@ -32,12 +38,12 @@ const excerpt = computed(() => {
 </script>
 
 <template>
-  <router-link
-      class="knowledge-row"
-      :to="`/detail/${knowledge.id}`"
-      :aria-label="`打开知识：${knowledge.title}`"
-  >
-    <div class="knowledge-main">
+  <article class="knowledge-row">
+    <router-link
+        class="knowledge-main"
+        :to="`/detail/${knowledge.id}`"
+        :aria-label="`打开知识：${knowledge.title}`"
+    >
       <div class="knowledge-top">
         <span class="category-chip">{{ knowledge.category || '未分类' }}</span>
         <span v-if="knowledge.status === 'DRAFT'" class="draft-chip">草稿</span>
@@ -50,15 +56,23 @@ const excerpt = computed(() => {
           #{{ tag.trim() }}
         </span>
       </div>
-    </div>
+    </router-link>
     <div class="knowledge-side">
       <span class="score" :class="scoreClass">
         <i></i>
         AI {{ knowledge.aiScore || 0 }}
       </span>
-      <span class="open-hint">查看详情</span>
+      <button
+          class="ai-action"
+          type="button"
+          :disabled="condensing"
+          @click="emit('condense', knowledge)"
+      >
+        {{ condensing ? '精简中…' : 'AI 精简' }}
+      </button>
+      <router-link class="open-hint" :to="`/detail/${knowledge.id}`">查看详情</router-link>
     </div>
-  </router-link>
+  </article>
 </template>
 
 <style scoped>
@@ -70,15 +84,20 @@ const excerpt = computed(() => {
   min-height: 96px;
   padding: 16px 8px;
   border-bottom: 1px solid var(--color-line);
-  color: inherit;
-  text-decoration: none;
   transition: background 0.16s ease, padding 0.16s ease;
 }
 
-.knowledge-row:hover {
+.knowledge-row:hover,
+.knowledge-row:focus-within {
   padding-right: 10px;
   padding-left: 12px;
   background: #fbfcfe;
+}
+
+.knowledge-main {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
 }
 
 .knowledge-top {
@@ -143,7 +162,7 @@ p {
 .knowledge-side {
   display: grid;
   justify-items: end;
-  gap: 14px;
+  gap: 9px;
 }
 
 .score {
@@ -176,6 +195,29 @@ p {
 .open-hint {
   color: #a1aab7;
   font-size: 9px;
+  text-decoration: none;
+}
+
+.ai-action {
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid #cad7f5;
+  border-radius: 5px;
+  background: var(--color-primary-soft);
+  color: #3562c8;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.ai-action:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: #e3edff;
+}
+
+.ai-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 @media (max-width: 720px) {

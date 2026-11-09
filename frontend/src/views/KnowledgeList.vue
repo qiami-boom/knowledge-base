@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import { getAllKnowledge, addKnowledge, importKnowledge } from '../api/knowledge'
+import { ref, onMounted, computed, watch } from 'vue'
+import { getAllKnowledge, addKnowledge, importKnowledge, condenseKnowledge } from '../api/knowledge'
 import { getStats } from '../api/review'
 import { describeError } from '../utils/error'
 import KnowledgeCard from '../components/KnowledgeCard.vue'
@@ -13,11 +13,14 @@ const loading = ref(true)
 const stats = ref(null)
 const searchQuery = ref('')
 const activeFilter = ref('all')
+const currentPage = ref(1)
+const pageSize = 8
 
 const showForm = ref(false)
 const fileInput = ref(null)
 const importing = ref(false)
 const saving = ref(false)
+const condensingId = ref(null)
 const form = ref(emptyForm())
 
 function emptyForm() {
@@ -53,6 +56,46 @@ const filteredList = computed(() => {
         .some((value) => String(value).toLowerCase().includes(keyword))
   })
 })
+
+const totalPages = computed(() => {
+  return Math.max(1, Math.ceil(filteredList.value.length / pageSize))
+})
+
+const pagedList = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return filteredList.value.slice(start, start + pageSize)
+})
+
+const pageNumbers = computed(() => {
+  const total = totalPages.value
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, index) => index + 1)
+  }
+  let start = Math.max(1, currentPage.value - 3)
+  const end = Math.min(total, start + 6)
+  start = Math.max(1, end - 6)
+  return Array.from({ length: end - start + 1 }, (_, index) => start + index)
+})
+
+watch([searchQuery, activeFilter], () => {
+  currentPage.value = 1
+})
+
+watch(totalPages, (total) => {
+  if (currentPage.value > total) currentPage.value = total
+})
+
+const goToPage = (page) => {
+  const target = Math.min(Math.max(1, page), totalPages.value)
+  if (target === currentPage.value) return
+  currentPage.value = target
+  requestAnimationFrame(() => {
+    document.querySelector('.knowledge-panel')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    })
+  })
+}
 
 const pct = (value) => {
   const total = stats.value?.total || 0
@@ -91,6 +134,7 @@ const handleAdd = async () => {
   saving.value = true
   try {
     await addKnowledge(form.value)
+    currentPage.value = 1
     await Promise.all([loadList(), loadStats()])
     form.value = emptyForm()
     showForm.value = false
@@ -108,6 +152,7 @@ const handleImport = async (event) => {
   importing.value = true
   try {
     const result = await importKnowledge(file)
+    currentPage.value = 1
     await Promise.all([loadList(), loadStats()])
     alert(
         `导入完成：共 ${result.total} 条，` +
@@ -120,6 +165,25 @@ const handleImport = async (event) => {
   } finally {
     importing.value = false
     event.target.value = ''
+  }
+}
+
+const handleCondense = async (item) => {
+  if (condensingId.value) return
+  if (!confirm(`AI 将精简「${item.title}」的标题和正文，原内容会被覆盖。继续吗？`)) return
+
+  condensingId.value = item.id
+  try {
+    const updated = await condenseKnowledge(item.id)
+    list.value = list.value.map((knowledge) =>
+        knowledge.id === updated.id ? updated : knowledge
+    )
+    alert(`AI 精简完成：${updated.title}`)
+  } catch (error) {
+    console.error('AI 精简知识卡失败:', error)
+    alert(`AI 精简失败：${describeError(error, '请稍后重试')}`)
+  } finally {
+    condensingId.value = null
   }
 }
 </script>
@@ -207,11 +271,42 @@ const handleImport = async (event) => {
         </div>
         <div v-else class="knowledge-list">
           <KnowledgeCard
-              v-for="item in filteredList"
+              v-for="item in pagedList"
               :key="item.id"
               :knowledge="item"
+              :condensing="condensingId === item.id"
+              @condense="handleCondense"
           />
         </div>
+
+        <nav v-if="!loading && !loadError && filteredList.length > 0" class="pagination" aria-label="知识分页">
+          <span class="page-summary">
+            第 {{ currentPage }} / {{ totalPages }} 页 · 每页 {{ pageSize }} 条
+          </span>
+          <div class="page-controls">
+            <button
+                type="button"
+                class="page-step"
+                :disabled="currentPage === 1"
+                @click="goToPage(currentPage - 1)"
+            >上一页</button>
+            <button
+                v-for="page in pageNumbers"
+                :key="page"
+                type="button"
+                class="page-number"
+                :class="{ active: page === currentPage }"
+                :aria-current="page === currentPage ? 'page' : undefined"
+                @click="goToPage(page)"
+            >{{ page }}</button>
+            <button
+                type="button"
+                class="page-step"
+                :disabled="currentPage === totalPages"
+                @click="goToPage(currentPage + 1)"
+            >下一页</button>
+          </div>
+        </nav>
       </section>
 
       <aside v-if="stats" class="insights">
@@ -442,6 +537,62 @@ const handleImport = async (event) => {
   min-width: 0;
 }
 
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 62px;
+  padding: 12px 4px 8px;
+}
+
+.page-summary {
+  color: var(--color-muted);
+  font-size: 9px;
+}
+
+.page-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.page-step,
+.page-number {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--color-line);
+  border-radius: 5px;
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  font-size: 9px;
+}
+
+.page-number {
+  min-width: 30px;
+  padding: 0;
+}
+
+.page-step:hover:not(:disabled),
+.page-number:hover {
+  border-color: #b9c9e8;
+  color: var(--color-primary);
+}
+
+.page-number.active {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+  font-weight: 650;
+}
+
+.page-step:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .insights {
   display: grid;
   gap: 14px;
@@ -653,6 +804,18 @@ const handleImport = async (event) => {
 
   .insights {
     grid-template-columns: 1fr;
+  }
+
+  .pagination {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-top: 14px;
+  }
+
+  .page-controls {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .form-row {

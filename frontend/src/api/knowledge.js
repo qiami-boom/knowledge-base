@@ -19,6 +19,13 @@ export const updateKnowledge = (id, data) => {
     return request.put(`/knowledges/${id}`, data)
 }
 
+// 让 AI 精简一张已有知识卡
+export const condenseKnowledge = (id) => {
+    return request.post(`/knowledges/${id}/condense`, null, {
+        timeout: 120000
+    })
+}
+
 // 删除
 export const deleteKnowledge = (id) => {
     return request.delete(`/knowledges/${id}`)

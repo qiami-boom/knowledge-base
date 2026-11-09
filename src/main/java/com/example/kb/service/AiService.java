@@ -4,6 +4,7 @@ import com.example.kb.entity.Knowledge;
 import com.example.kb.review.ChoiceQuestion;
 import com.example.kb.review.QuizQuestion;
 import com.example.kb.service.dto.ExtractItem;
+import com.example.kb.service.dto.KnowledgeAiEditResult;
 import com.example.kb.service.dto.RawScore;
 import com.example.kb.service.dto.ScoreResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -426,6 +427,64 @@ private String cleanJson(String raw) {
         return parseJson(json, ChoiceQuestion.class,
                 "[AI出题-选择题]",
                 new ChoiceQuestion("", List.of(), -1, ""));
+    }
+
+    /**
+     * 根据用户指令编辑一张已有知识卡。
+     * 只生成可替换内容，不在这里落库，也不允许 AI 改写个人备注和评分。
+     */
+    public KnowledgeAiEditResult editKnowledge(Knowledge knowledge, String instruction) {
+        String prompt = """
+                你是个人知识库的卡片编辑。请根据编辑指令重写已有知识卡。
+
+                硬性规则：
+                1. 只返回 title、content、summary、category、tags 五个字段
+                2. 不得修改个人备注、用户评分、来源、状态、卡片 id 或用户归属
+                3. 不得编造原卡片没有的事实；保留代码、命令、报错、公式和关键边界条件
+                4. content 继续使用 Markdown，去掉重复表达和对话痕迹
+                5. 如果指令是“精简”，优先压缩冗余，不要丢掉关键结论
+                6. 只输出严格 JSON，不要输出解释或 Markdown 代码围栏
+
+                返回格式：
+                {"title":"24 字以内标题","content":"精简后的 Markdown 正文","summary":"一句话摘要","category":"分类","tags":"标签1,标签2"}
+
+                编辑指令：
+                %s
+
+                当前标题：
+                %s
+
+                当前分类：
+                %s
+
+                当前标签：
+                %s
+
+                当前摘要：
+                %s
+
+                当前正文：
+                %s
+                """.formatted(
+                instruction,
+                valueOrEmpty(knowledge.getTitle()),
+                valueOrEmpty(knowledge.getCategory()),
+                valueOrEmpty(knowledge.getTags()),
+                valueOrEmpty(knowledge.getSummary()),
+                valueOrEmpty(knowledge.getContent())
+        );
+
+        String json = callAI(prompt);
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+
+        return parseJson(cleanJson(json), KnowledgeAiEditResult.class,
+                "[AI编辑知识卡]", null);
+    }
+
+    private String valueOrEmpty(String value) {
+        return value == null ? "" : value;
     }
 
     /**
