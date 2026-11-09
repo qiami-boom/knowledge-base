@@ -87,8 +87,11 @@ public class KnowledgeService {
     /** 批量写入（导入用），统一设置归属用户 */
     @AutoTimestamp
     public void batchAdd(List<Knowledge> knowledges, Long userId) {
-        knowledges.forEach(knowledge -> knowledge.setUserId(userId));
-        knowledgeMapper.batchInsert(knowledges);
+        for (Knowledge knowledge : knowledges) {
+            knowledge.setUserId(userId);
+            knowledgeMapper.insert(knowledge);
+            applyAiTagsIfEmpty(knowledge);
+        }
     }
 
     /** 更新：先按归属查，越权时 404 */
