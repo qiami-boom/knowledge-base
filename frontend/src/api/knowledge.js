@@ -26,6 +26,13 @@ export const condenseKnowledge = (id, keepOriginal = false) => {
     })
 }
 
+// 为已有知识补齐或重新生成 AI 标签
+export const generateKnowledgeTags = (id) => {
+    return request.post(`/knowledges/${id}/tags/generate`, null, {
+        timeout: 120000
+    })
+}
+
 // 删除
 export const deleteKnowledge = (id) => {
     return request.delete(`/knowledges/${id}`)

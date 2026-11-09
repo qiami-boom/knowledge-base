@@ -4,7 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
 import AppIcon from '../components/AppIcon.vue'
 import CondenseDialog from '../components/CondenseDialog.vue'
-import { getKnowledgeById, updateKnowledge, deleteKnowledge, condenseKnowledge } from '../api/knowledge'
+import {
+  getKnowledgeById,
+  updateKnowledge,
+  deleteKnowledge,
+  condenseKnowledge,
+  generateKnowledgeTags
+} from '../api/knowledge'
 import { generateCards } from '../api/review'
 import { describeError } from '../utils/error'
 
@@ -18,6 +24,8 @@ const editing = ref(false)
 const condensing = ref(false)
 const condenseDialogOpen = ref(false)
 const condenseMsg = ref('')
+const generatingTags = ref(false)
+const tagMsg = ref('')
 // 编辑草稿：独立于 knowledge，取消时整份丢弃，不污染原数据
 const editForm = ref({})
 
@@ -139,6 +147,23 @@ const cancelCondense = () => {
   if (!condensing.value) condenseDialogOpen.value = false
 }
 
+const handleGenerateTags = async () => {
+  if (generatingTags.value) return
+  generatingTags.value = true
+  tagMsg.value = ''
+  try {
+    knowledge.value = await generateKnowledgeTags(route.params.id)
+    tagMsg.value = knowledge.value.tags
+        ? `已生成标签：${knowledge.value.tags}`
+        : 'AI 没有返回有效标签，请重试'
+  } catch (error) {
+    console.error('生成标签失败:', error)
+    tagMsg.value = describeError(error, '生成标签失败，请稍后重试')
+  } finally {
+    generatingTags.value = false
+  }
+}
+
   const generating = ref(false)      // 独立 loading：AI 可能要十几秒
   const reviewMsg = ref('')          // 提示文案
   const reviewMsgType = ref('')      // 'ok' | 'error'
@@ -174,6 +199,10 @@ const cancelCondense = () => {
           返回知识库
         </button>
         <div class="actions-right">
+          <button v-if="!editing" class="tag-edit-btn" type="button" :disabled="generatingTags" @click="handleGenerateTags">
+            <AppIcon name="tag" :size="15" />
+            {{ generatingTags ? '生成标签中…' : (knowledge.tags ? 'AI 重写标签' : 'AI 补标签') }}
+          </button>
           <button v-if="!editing" class="ai-edit-btn" type="button" :disabled="condensing" @click="handleCondense">
             <AppIcon name="sparkles" :size="15" />
             {{ condensing ? 'AI 精简中…' : 'AI 精简' }}
@@ -189,6 +218,7 @@ const cancelCondense = () => {
         </div>
       </div>
       <p v-if="condenseMsg" class="ai-edit-msg">{{ condenseMsg }}</p>
+      <p v-if="tagMsg" class="ai-edit-msg">{{ tagMsg }}</p>
       <!-- 视图 A：只读（原样保留，外面包一层 template） -->
       <template v-if="!editing">
         <div class="detail-header">
@@ -594,6 +624,7 @@ const cancelCondense = () => {
 }
 
 .back-btn,
+.tag-edit-btn,
 .ai-edit-btn,
 .edit-btn,
 .delete-btn {
@@ -609,6 +640,22 @@ const cancelCondense = () => {
   cursor: pointer;
   font-size: 11px;
   font-weight: 600;
+}
+
+.tag-edit-btn {
+  border-color: #c9d7f5;
+  background: #fff;
+  color: #3562c8;
+}
+
+.tag-edit-btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.tag-edit-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 .ai-edit-btn {

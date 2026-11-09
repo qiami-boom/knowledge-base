@@ -231,6 +231,7 @@ private String cleanJson(String raw) {
                 String t = node.asText().trim();
                 if (!t.isEmpty()) {
                     result.add(t);
+                    if (result.size() >= maxTags) break;
                 }
             }
             return result;

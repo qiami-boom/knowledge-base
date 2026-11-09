@@ -6,9 +6,12 @@ import com.example.kb.knowledge_tag.service.TagServer;
 import com.example.kb.knowledge_tag.util.TagNormalizer;
 import com.example.kb.service.AiService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class TagServerimpl implements TagServer {
@@ -27,15 +30,25 @@ public class TagServerimpl implements TagServer {
      * @return 打上的标签名列表
      */
     @Override
+    @Transactional
     public List<String> tag(String content, Long knowledgeId) {
         // 1. AI 生成候选标签
         List<String> aiTags = aiService.generateTags(content, 5);
+        if (aiTags.isEmpty()) {
+            return List.of();
+        }
 
-        // 2. 逐个匹配库内已有标签
+        Set<String> seen = new LinkedHashSet<>();
+        List<String> assignedNames = new java.util.ArrayList<>();
+
+        // 2. 先清理旧关系，再按本次 AI 结果重建
+        tagMapper.deleteLinksByKnowledgeId(knowledgeId);
         for (String aiTag : aiTags) {
+            if (aiTag == null || aiTag.isBlank()) continue;
 
-            String norm = TagNormalizer.normalize(aiTag);    // "Spring Boot" → "springboot"
-            if (norm.isEmpty()) continue;
+            String displayName = aiTag.trim();
+            String norm = TagNormalizer.normalize(displayName);
+            if (norm.isEmpty() || !seen.add(norm)) continue;
 
             // L0 精确匹配
             Tag tag = tagMapper.findByNormalized(norm);
@@ -47,19 +60,20 @@ public class TagServerimpl implements TagServer {
             if (tag == null) {
                 // 库里没有 → 新建
                 tag = new Tag();
-                tag.setName(aiTag);
+                tag.setName(displayName);
                 tag.setNormalized(norm);
+                tag.setUsageCount(0);
                 tag.setCreatedAt(LocalDateTime.now());
                 tagMapper.insertTag(tag);
-            } else {
-                // 有 → 复用，计数 +1
-                tagMapper.increaseUsage(tag.getId());
             }
 
             // 记录 笔记↔标签 关联
             tagMapper.link(knowledgeId, tag.getId());
+            assignedNames.add(tag.getName());
         }
 
-        return aiTags;
+        // usage_count 统一按关系表重算，避免复用和重生成时计数漂移
+        tagMapper.recalculateUsage();
+        return assignedNames;
     }
 }

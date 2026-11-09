@@ -74,6 +74,11 @@ public class KnowledgeController {
         ));
     }
 
+    @PostMapping("/{id}/tags/generate")
+    public Result<Knowledge> generateTags(@PathVariable Long id, HttpServletRequest httpRequest) {
+        return Result.success(knowledgeService.generateTags(id, uid(httpRequest)));
+    }
+
     @DeleteMapping("/{id}")
     public Result<Void> delete(@PathVariable Long id, HttpServletRequest httpRequest){
         knowledgeService.delete(id, uid(httpRequest));

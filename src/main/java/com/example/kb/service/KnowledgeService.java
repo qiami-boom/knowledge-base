@@ -5,9 +5,11 @@ import com.example.kb.aspect.AutoTimestamp;
 import com.example.kb.config.BusinessException;
 import com.example.kb.entity.Knowledge;
 
+import com.example.kb.knowledge_tag.service.TagServer;
 import com.example.kb.mapper.KnowledgeMapper;
 import com.example.kb.service.dto.KnowledgeAiEditResult;
 import com.example.kb.service.dto.KnowledgeRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,7 @@ import java.util.List;
  * 越权时统一表现为 404「知识不存在」，不区分"不存在"与"无权访问"。
  */
 @Service
+@Slf4j
 public class KnowledgeService {
 
     private static final String ORIGINAL_CONTENT_MARKER = "\n\n---\n\n## 原文\n\n";
@@ -29,6 +32,9 @@ public class KnowledgeService {
 
     @Autowired
     private AiService aiService;
+
+    @Autowired
+    private TagServer tagServer;
 
     /** 当前用户的正式知识列表（status=ACTIVE） */
     public List<Knowledge> findAll(Long userId) {
@@ -74,6 +80,7 @@ public class KnowledgeService {
         knowledge.setUpdatedAt(now);
 
         knowledgeMapper.insert(knowledge);
+        applyAiTagsIfEmpty(knowledge);
         return knowledge;
     }
 
@@ -173,6 +180,26 @@ public class KnowledgeService {
         return existing;
     }
 
+    /**
+     * 为已有知识重新生成标签，用于补齐导入或历史数据。
+     */
+    public Knowledge generateTags(Long id, Long userId) {
+        Knowledge knowledge = findById(id, userId);
+        if (!"ACTIVE".equals(knowledge.getStatus())) {
+            throw new BusinessException(400, "只有已入库的知识可以生成标签");
+        }
+
+        List<String> tags = tagServer.tag(tagContent(knowledge), id);
+        if (tags.isEmpty()) {
+            throw new BusinessException(502, "AI 没有生成有效标签，请稍后重试");
+        }
+
+        knowledge.setTags(String.join(",", tags));
+        knowledge.setUpdatedAt(LocalDateTime.now());
+        knowledgeMapper.update(knowledge);
+        return knowledge;
+    }
+
     /** 删除：先按归属查，越权时 404 */
     public void delete(Long id, Long userId) {
         findById(id, userId);
@@ -202,6 +229,7 @@ public class KnowledgeService {
         knowledge.setStatus("ACTIVE");
         knowledge.setUpdatedAt(LocalDateTime.now());
         knowledgeMapper.update(knowledge);
+        applyAiTagsIfEmpty(knowledge);
     }
 
     /**
@@ -247,6 +275,30 @@ public class KnowledgeService {
         if (content == null) return "";
         int headingIndex = content.indexOf("## 原文");
         return (headingIndex >= 0 ? content.substring(0, headingIndex) : content).strip();
+    }
+
+    private void applyAiTagsIfEmpty(Knowledge knowledge) {
+        if (knowledge.getTags() != null && !knowledge.getTags().isBlank()) {
+            return;
+        }
+        try {
+            List<String> tags = tagServer.tag(tagContent(knowledge), knowledge.getId());
+            if (!tags.isEmpty()) {
+                knowledge.setTags(String.join(",", tags));
+                knowledge.setUpdatedAt(LocalDateTime.now());
+                knowledgeMapper.update(knowledge);
+            }
+        } catch (Exception e) {
+            log.warn("自动生成标签失败，知识卡仍保留：id={}, reason={}",
+                    knowledge.getId(), e.getMessage());
+        }
+    }
+
+    private String tagContent(Knowledge knowledge) {
+        String title = knowledge.getTitle() == null ? "" : knowledge.getTitle();
+        String content = knowledge.getContent() == null ? "" : knowledge.getContent();
+        String summary = knowledge.getSummary() == null ? "" : knowledge.getSummary();
+        return (title + "\n" + summary + "\n" + content).trim();
     }
 
 }

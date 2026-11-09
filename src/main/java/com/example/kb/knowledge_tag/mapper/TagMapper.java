@@ -21,4 +21,10 @@ public interface TagMapper {
 
     /** 记录 笔记↔标签 关联（重复关联自动忽略） */
     void link(@Param("knowledgeId") Long knowledgeId, @Param("tagId") Long tagId);
+
+    /** 重新生成标签前，先移除当前知识旧的关系 */
+    void deleteLinksByKnowledgeId(@Param("knowledgeId") Long knowledgeId);
+
+    /** 关系变化后统一按 knowledge_tag 重算引用数，避免计数漂移 */
+    void recalculateUsage();
 }

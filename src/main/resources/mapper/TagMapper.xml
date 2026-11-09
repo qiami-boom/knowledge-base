@@ -37,4 +37,17 @@
         INSERT OR IGNORE INTO knowledge_tag(knowledge_id, tag_id, match_score, match_layer)
         VALUES (#{knowledgeId}, #{tagId}, 1.0, 'EXACT')
     </insert>
+
+    <delete id="deleteLinksByKnowledgeId">
+        DELETE FROM knowledge_tag WHERE knowledge_id = #{knowledgeId}
+    </delete>
+
+    <update id="recalculateUsage">
+        UPDATE tag
+        SET usage_count = (
+            SELECT COUNT(*)
+            FROM knowledge_tag
+            WHERE knowledge_tag.tag_id = tag.id
+        )
+    </update>
 </mapper>
