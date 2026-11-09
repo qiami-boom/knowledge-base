@@ -126,7 +126,6 @@ const submit = async () => {
   <div class="login-page">
     <div class="login-card">
       <div class="brand">
-        <span class="logo" aria-hidden="true">知</span>
         <h1>{{ mode === 'login' ? '个人知识库' : '创建账号' }}</h1>
         <p class="sub">
           {{ mode === 'login' ? '登录后继续整理你的笔记' : '注册后自动登录，立刻开始使用' }}
@@ -425,6 +424,97 @@ const submit = async () => {
 @media (max-width: 420px) {
   .login-card {
     padding: 28px 22px 22px;
+  }
+}
+</style>
+
+<style scoped>
+.login-page {
+  min-height: 100vh;
+  padding: 28px 18px;
+  background: var(--color-canvas);
+  background-image: none;
+}
+
+.login-card {
+  width: min(100%, 400px);
+  padding: 38px 34px 28px;
+  border-color: var(--color-line);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 50px rgba(25, 35, 50, 0.08);
+}
+
+.login-card::before {
+  height: 3px;
+  background: var(--color-primary);
+}
+
+.brand {
+  margin-bottom: 28px;
+}
+
+.brand h1 {
+  margin-bottom: 8px;
+  color: var(--color-ink);
+  font-size: 23px;
+  font-weight: 700;
+}
+
+.sub {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.form {
+  gap: 15px;
+}
+
+.field label {
+  color: var(--color-ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.field input {
+  min-height: 43px;
+  border-color: var(--color-line-strong);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.field input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(47, 105, 242, 0.1);
+}
+
+.submit {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+  font-size: 13px;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--color-primary-strong);
+}
+
+.error {
+  color: var(--color-danger);
+  font-size: 11px;
+}
+
+.switch {
+  color: var(--color-muted);
+  font-size: 11px;
+}
+
+.link {
+  color: var(--color-primary);
+}
+
+@media (max-width: 460px) {
+  .login-card {
+    padding: 31px 23px 23px;
   }
 }
 </style>

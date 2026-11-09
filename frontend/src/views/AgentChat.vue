@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import AppIcon from '../components/AppIcon.vue'
 import { confirmDraft, discardDraft, extractByFile, extractByUrl, agentChat } from '../api/agent'
 import { getDueCards, getProgress } from '../api/review'
 import { me as currentUser, getAgentRule, updateAgentRule } from '../api/auth'
@@ -341,7 +342,23 @@ const extractUrl = async (url) => {
 </script>
 
 <template>
-  <div class="chat-page">
+  <div class="chat-shell">
+    <header class="page-header chat-header">
+      <div class="page-heading">
+        <div class="page-kicker">Agent workspace</div>
+        <h1 class="page-title">对话</h1>
+        <p class="page-subtitle">与知识库一起思考，把值得保留的内容整理成可复习的知识。</p>
+      </div>
+      <div class="page-actions">
+        <span class="session-status"><i></i>会话已自动保存</span>
+        <button class="btn btn-ghost" type="button" @click="clearChat">
+          <AppIcon name="edit" :size="15" />
+          新对话
+        </button>
+      </div>
+    </header>
+
+    <div class="chat-page">
     <div class="chat-main">
     <div class="messages" ref="listRef">
       <div v-for="(m, i) in messages" :key="i" :class="['msg', m.role]">
@@ -366,8 +383,8 @@ const extractUrl = async (url) => {
             <div class="draft-content">{{ d.content }}</div>
 
             <div v-if="d.state === 'pending'" class="draft-actions">
-              <button class="btn-primary" @click="confirm(d)">入库</button>
-              <button class="btn-ghost" @click="discard(d)">丢弃</button>
+              <button class="btn-primary" type="button" @click="confirm(d)">入库</button>
+              <button class="btn-ghost" type="button" @click="discard(d)">丢弃</button>
             </div>
             <div v-else class="draft-state">
               {{ d.state === 'confirmed' ? '已入库' : '已丢弃' }}
@@ -404,7 +421,7 @@ const extractUrl = async (url) => {
           @change="saveCustomRule"
           @keydown.enter.prevent="saveCustomRule"
       />
-      <button class="btn-ghost" @click="saveCustomRule">保存</button>
+      <button class="btn-ghost" type="button" @click="saveCustomRule">保存</button>
     </div>
 
     <div class="examples">
@@ -428,14 +445,16 @@ const extractUrl = async (url) => {
         <div class="composer-bar">
           <!-- 左下角加号：文件和清空都收进菜单，输入区不再堆按钮 -->
           <div class="plus-wrap">
-            <button class="plus-btn" :disabled="sending" title="添加" @click.stop="menuOpen = !menuOpen">+</button>
+            <button class="plus-btn" type="button" :disabled="sending" title="添加" @click.stop="menuOpen = !menuOpen">
+              <AppIcon name="plus" :size="17" />
+            </button>
             <div v-if="menuOpen" class="menu-mask" @click="menuOpen = false"></div>
             <div v-if="menuOpen" class="plus-menu">
-              <button class="menu-item" @click="pickFile">
+              <button class="menu-item" type="button" @click="pickFile">
                 <span>上传文件</span>
                 <span class="menu-hint">.md / .jsonl / .docx</span>
               </button>
-              <button class="menu-item" @click="clearChat">
+              <button class="menu-item" type="button" @click="clearChat">
                 <span>清空对话</span>
               </button>
             </div>
@@ -448,7 +467,9 @@ const extractUrl = async (url) => {
 
           <span class="bar-spacer"></span>
 
-          <button class="send-btn" :disabled="sending || !input.trim()" title="发送" @click="send">↑</button>
+          <button class="send-btn" type="button" :disabled="sending || !input.trim()" title="发送" @click="send">
+            <AppIcon name="send" :size="17" />
+          </button>
         </div>
       </div>
     </div>
@@ -485,6 +506,7 @@ const extractUrl = async (url) => {
         </p>
       </div>
     </aside>
+  </div>
   </div>
 </template>
 
@@ -921,5 +943,330 @@ const extractUrl = async (url) => {
 .url-row .btn-primary,
 .url-row .btn-ghost {
   height: 36px;
+}
+</style>
+
+<style scoped>
+.chat-shell {
+  max-width: 1420px;
+  margin: 0 auto;
+}
+
+.chat-header {
+  margin-bottom: 18px;
+}
+
+.session-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.session-status i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #48a47d;
+}
+
+.chat-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  height: calc(100vh - 176px);
+  min-height: 620px;
+}
+
+.chat-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.messages {
+  padding: 24px 30px 16px;
+}
+
+.msg {
+  margin-bottom: 20px;
+}
+
+.bubble {
+  max-width: 680px;
+  padding: 13px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.msg.user .bubble {
+  background: var(--color-primary);
+  color: #fff;
+  border-bottom-right-radius: 3px;
+}
+
+.msg.agent .bubble {
+  border: 1px solid #e2e7ee;
+  background: #fbfcfe;
+  color: #333d4b;
+  border-bottom-left-radius: 3px;
+}
+
+.bubble.typing {
+  color: var(--color-muted);
+}
+
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.step {
+  padding: 4px 9px;
+  border-radius: 9px;
+  background: var(--color-primary-soft);
+  color: #3f68bb;
+  font-size: 10px;
+}
+
+.draft-list {
+  width: min(100%, 720px);
+  max-width: none;
+}
+
+.draft-card {
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border: 1px solid #dfe5ed;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 7px;
+  background: #fff;
+}
+
+.draft-card.confirmed {
+  border-left-color: var(--color-success);
+  background: #fbfdfc;
+}
+
+.draft-card.discarded {
+  border-left-color: #a7b0bd;
+  background: #f7f8fa;
+}
+
+.draft-title {
+  font-size: 12px;
+}
+
+.draft-star {
+  color: var(--color-amber);
+  font-size: 10px;
+}
+
+.draft-content {
+  color: #748094;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.btn-primary,
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 29px;
+  padding: 0 11px;
+  border-radius: 5px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.btn-primary {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-ghost {
+  border: 1px solid var(--color-line);
+  background: #fff;
+  color: var(--color-ink-soft);
+}
+
+.composer {
+  padding-top: 10px;
+  border-top: 1px solid #edf0f4;
+  background: #fbfcfe;
+}
+
+.examples {
+  padding: 0 24px 9px;
+}
+
+.example-chip {
+  padding: 5px 10px;
+  border: 1px solid #e1e6ee;
+  border-radius: 12px;
+  background: #fff;
+  color: #617086;
+  font-size: 10px;
+}
+
+.composer-box {
+  margin: 0 24px 18px;
+  border: 1px solid #cfd8e6;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(47, 105, 242, 0.05);
+}
+
+.composer textarea {
+  height: 68px;
+  font-size: 13px;
+}
+
+.plus-btn {
+  width: 29px;
+  height: 29px;
+  border-color: #dce2ea;
+  color: #657287;
+}
+
+.rule-select {
+  color: #687589;
+  font-size: 10px;
+}
+
+.send-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+}
+
+.send-btn:disabled {
+  background: #c7d6f3;
+}
+
+.knowledge-panel {
+  width: auto;
+  min-height: 0;
+  padding: 16px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.panel-head {
+  color: var(--color-ink);
+  font-size: 13px;
+}
+
+.panel-count {
+  font-size: 10px;
+}
+
+.panel-hint {
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.k-row {
+  gap: 9px;
+  min-height: 50px;
+  padding: 8px 3px;
+  border-bottom: 1px solid #edf0f4;
+  border-radius: 0;
+}
+
+.k-row:hover {
+  background: #f8faff;
+}
+
+.k-title {
+  font-size: 11px;
+}
+
+.k-score {
+  color: var(--color-amber);
+  font-size: 9px;
+}
+
+.k-seg {
+  background: #e6eaf0;
+}
+
+.k-seg.on,
+.k-progress .k-seg.on {
+  background: #6b90e9;
+}
+
+.url-row {
+  padding: 0 24px 9px;
+}
+
+@media (max-width: 1120px) {
+  .chat-page {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+    min-height: 0;
+  }
+
+  .knowledge-panel {
+    display: none;
+  }
+
+  .chat-main {
+    min-height: 660px;
+  }
+}
+
+@media (max-width: 760px) {
+  .chat-header {
+    margin-bottom: 16px;
+  }
+
+  .session-status,
+  .chat-header .page-actions {
+    display: none;
+  }
+
+  .chat-page {
+    height: calc(100dvh - 238px);
+    min-height: 0;
+  }
+
+  .chat-main {
+    min-height: 0;
+  }
+
+  .messages {
+    padding: 18px 14px 12px;
+  }
+
+  .bubble {
+    max-width: 88%;
+    font-size: 12px;
+  }
+
+  .examples {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding: 0 14px 9px;
+  }
+
+  .example-chip {
+    flex-shrink: 0;
+  }
+
+  .composer-box {
+    margin: 0 14px 14px;
+  }
 }
 </style>

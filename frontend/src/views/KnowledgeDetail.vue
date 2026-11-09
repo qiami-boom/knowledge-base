@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MarkdownIt from 'markdown-it'
+import AppIcon from '../components/AppIcon.vue'
 import { getKnowledgeById, updateKnowledge ,deleteKnowledge } from '../api/knowledge'
 import { generateCards } from '../api/review'
 import { describeError } from '../utils/error'
@@ -18,6 +19,29 @@ const editForm = ref({})
 
 // Markdown 渲染器：html:false 禁止内嵌 HTML（正文是 AI 生成的，防注入）
 const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
+
+const formatDateTime = (value) => {
+  if (!value) return '未知'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(date)
+}
+
+const formatSource = (source) => {
+  const labels = {
+    MANUAL: '手动录入',
+    TRAE_EXPORT: 'Trae 对话',
+    TRAE_IMPORT: 'Trae 导入',
+    AGENT_EXTRACT: 'Agent 整理'
+  }
+  return labels[source] || source || '手动录入'
+}
 
 /** 把正文的 Markdown 渲染成 HTML，星号、竖线表格、代码块都会变成正常排版 */
 const renderedContent = computed(() => {
@@ -112,10 +136,19 @@ const handleDelete = async () => {
     <p v-if="loading">加载中...</p>
     <div v-else-if="knowledge" class="detail">
       <div class="top-actions">
-        <button class="back-btn" @click="goBack">← 返回列表</button>
+        <button class="back-btn" type="button" @click="goBack">
+          <AppIcon name="arrow-left" :size="16" />
+          返回知识库
+        </button>
         <div class="actions-right">
-          <button v-if="!editing" class="edit-btn" @click="openEdit">编辑</button>
-          <button class="delete-btn" @click="handleDelete">删除</button>
+          <button v-if="!editing" class="edit-btn" type="button" @click="openEdit">
+            <AppIcon name="edit" :size="15" />
+            编辑
+          </button>
+          <button class="delete-btn" type="button" @click="handleDelete">
+            <AppIcon name="trash" :size="15" />
+            删除
+          </button>
         </div>
       </div>
       <!-- 视图 A：只读（原样保留，外面包一层 template） -->
@@ -129,10 +162,10 @@ const handleDelete = async () => {
         </div>
         <h2 class="title">{{ knowledge.title }}</h2>
         <div class="meta">
-          <span>来源: {{ knowledge.source || '手动' }}</span>
+          <span>来源: {{ formatSource(knowledge.source) }}</span>
           <span>标签: {{ knowledge.tags || '无' }}</span>
-          <span>创建: {{ knowledge.createdAt }}</span>
-          <span>更新: {{ knowledge.updatedAt }}</span>
+          <span>创建: {{ formatDateTime(knowledge.createdAt) }}</span>
+          <span>更新: {{ formatDateTime(knowledge.updatedAt) }}</span>
         </div>
         <!-- AI 摘要：一句话看懂这条在讲什么 -->
         <div v-if="knowledge.summary" class="summary-card">
@@ -148,7 +181,7 @@ const handleDelete = async () => {
         <div class="review-box">
           <div class="review-head">
             <span class="review-label">复习</span>
-            <button class="gen-btn" :disabled="generating" @click="handleGenerate">
+            <button class="gen-btn" type="button" :disabled="generating" @click="handleGenerate">
               {{ generating ? '生成中…（AI 出题）' : '生成复习卡' }}
             </button>
           </div>
@@ -194,8 +227,8 @@ const handleDelete = async () => {
           </div>
         </div>
         <div class="form-actions">
-          <button class="cancel-btn" @click="cancelEdit">取消</button>
-          <button class="save-btn" @click="saveEdit">保存</button>
+          <button class="cancel-btn" type="button" @click="cancelEdit">取消</button>
+          <button class="save-btn" type="button" @click="saveEdit">保存</button>
         </div>
       </template>
     </div>
@@ -504,5 +537,226 @@ const handleDelete = async () => {
   margin-top: 8px;
   color: #3b6ef5;
   font-size: 14px;
+}
+</style>
+
+<style scoped>
+.top-actions {
+  max-width: 1020px;
+  margin: 0 auto 18px;
+  align-items: center;
+}
+
+.back-btn,
+.edit-btn,
+.delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.back-btn:hover,
+.edit-btn:hover {
+  border-color: #bdcaDD;
+  color: var(--color-primary);
+}
+
+.delete-btn {
+  border-color: #ecd0cd;
+  background: #fff;
+  color: var(--color-danger);
+}
+
+.detail {
+  width: min(1020px, 100%);
+  margin: 0 auto;
+  padding: 31px 34px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.detail-header {
+  align-items: center;
+}
+
+.category-tag {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--color-primary-soft);
+  color: #3562c8;
+  font-size: 10px;
+}
+
+.score-chip {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+}
+
+.score-chip.ai {
+  background: var(--color-primary-soft);
+  color: #3562c8;
+}
+
+.score-chip.mine {
+  background: var(--color-amber-soft);
+  color: var(--color-amber);
+}
+
+.title {
+  max-width: 780px;
+  margin-bottom: 13px;
+  color: var(--color-ink);
+  font-size: 25px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.meta {
+  gap: 12px 18px;
+  padding-bottom: 17px;
+  border-bottom-color: var(--color-line);
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+.content {
+  max-width: 780px;
+  color: #354151;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3 {
+  color: var(--color-ink);
+}
+
+.markdown-body pre {
+  border: 1px solid #e3e8ef;
+  border-radius: 7px;
+  background: #f7f9fc;
+}
+
+.markdown-body code {
+  background: #edf1f6;
+}
+
+.summary-card {
+  max-width: 780px;
+  padding: 15px 17px;
+  border: 0;
+  border-left: 3px solid #7f9fe4;
+  border-radius: 0 6px 6px 0;
+  background: #f6f8fd;
+}
+
+.summary-label {
+  color: var(--color-primary);
+}
+
+.personal-note {
+  max-width: 780px;
+  border: 1px solid #eee4d5;
+  border-radius: 7px;
+  background: #fffbf4;
+}
+
+.personal-note h4 {
+  color: var(--color-amber);
+}
+
+.review-box {
+  max-width: 780px;
+  margin-top: 27px;
+  border: 1px solid #dfe5ee;
+  border-radius: 7px;
+  background: #f8faff;
+}
+
+.review-label,
+.go-review {
+  color: var(--color-primary);
+}
+
+.gen-btn,
+.save-btn {
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+}
+
+.gen-btn:hover:not(:disabled),
+.save-btn:hover {
+  background: var(--color-primary-strong);
+}
+
+.cancel-btn {
+  border-radius: var(--radius-md);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  min-height: 40px;
+  border-color: var(--color-line-strong);
+  border-radius: var(--radius-md);
+}
+
+.form-group textarea {
+  padding-top: 10px;
+  line-height: 1.6;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(47, 105, 242, 0.1);
+}
+
+.actions-right {
+  gap: 7px;
+}
+
+@media (max-width: 760px) {
+  .top-actions {
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .detail {
+    padding: 22px 17px;
+  }
+
+  .detail-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .title {
+    font-size: 21px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .actions-right {
+    margin-left: auto;
+  }
 }
 </style>

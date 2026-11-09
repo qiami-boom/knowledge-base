@@ -145,10 +145,16 @@ const rate = async (quality) => {
 
 <template>
   <div class="review-page">
-    <div class="head">
-      <h2>今日复习</h2>
-      <span v-if="progress" class="progress">{{ progress }}</span>
-    </div>
+    <header class="page-header review-head">
+      <div class="page-heading">
+        <div class="page-kicker">Review</div>
+        <h1 class="page-title">今日复习</h1>
+        <p class="page-subtitle">先主动回忆，再翻看答案。每次自评都会决定下次出现的时间。</p>
+      </div>
+      <div class="page-actions">
+        <span v-if="progress" class="progress">{{ progress }}</span>
+      </div>
+    </header>
 
     <p v-if="loading" class="hint">加载中…</p>
 
@@ -418,5 +424,147 @@ hr { border: none; border-top: 1px solid #eee; margin: 16px 0; }
 .done-actions .ghost:hover {
   border-color: #3b6ef5;
   color: #3b6ef5;
+}
+</style>
+
+<style scoped>
+.review-page {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.review-head {
+  margin-bottom: 24px;
+}
+
+.progress {
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  font-size: 10px;
+}
+
+.hint {
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.hint.error {
+  color: var(--color-danger);
+}
+
+.card,
+.done-card {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.card {
+  padding: 28px;
+}
+
+.question,
+.quiz-stem {
+  color: var(--color-ink);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.answer p {
+  color: var(--color-ink-soft);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+hr {
+  border-top-color: var(--color-line);
+}
+
+.primary {
+  border-radius: var(--radius-md);
+  background: var(--color-primary);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--color-primary-strong);
+}
+
+.ratings button {
+  border-radius: var(--radius-md);
+}
+
+.forgot {
+  background: var(--color-danger);
+}
+
+.fuzzy {
+  background: var(--color-amber);
+}
+
+.remembered {
+  background: var(--color-success);
+}
+
+.meta {
+  color: var(--color-muted);
+}
+
+.option {
+  border-color: var(--color-line);
+  border-radius: 7px;
+}
+
+.option:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: #f8faff;
+}
+
+.opt-label {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.quiz-entry {
+  border-color: #cfd9e9;
+  border-radius: 7px;
+  background: #f8faff;
+  color: #5e6d82;
+}
+
+.quiz-entry:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.done-icon {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.done-actions .ghost {
+  border-color: var(--color-line);
+  border-radius: 7px;
+}
+
+@media (max-width: 720px) {
+  .review-head .page-actions {
+    display: none;
+  }
+
+  .card {
+    padding: 21px 17px;
+  }
+
+  .ratings {
+    flex-direction: column;
+  }
+
+  .done-actions {
+    flex-wrap: wrap;
+  }
 }
 </style>
