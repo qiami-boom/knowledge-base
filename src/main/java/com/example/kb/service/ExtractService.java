@@ -46,6 +46,9 @@ public class ExtractService {
             knowledge.setBatchId(batchId);
             knowledge.setAiScore(ScoreResult.scoreOf(item.why(), item.general()));
             knowledge.setSummary(item.summary());
+            if (item.tags() != null && !item.tags().isEmpty()) {
+                knowledge.setTags(String.join(",", item.tags()));
+            }
             drafts.add(knowledge);
         }
         return drafts;
@@ -60,7 +63,10 @@ public class ExtractService {
                     knowledge.getId(),
                     knowledge.getTitle(),
                     knowledge.getContent(),
-                    knowledge.getAiScore()
+                    knowledge.getAiScore(),
+                    knowledge.getTags() == null || knowledge.getTags().isBlank()
+                            ? List.of()
+                            : List.of(knowledge.getTags().split(","))
             ));
         }
 
@@ -110,6 +116,9 @@ public class ExtractService {
             }
             k.setAiScore(r.score());
             k.setSummary(r.summary());
+            if (r.tags() != null && !r.tags().isEmpty()) {
+                k.setTags(String.join(",", r.tags()));
+            }
             if (r.title() != null && !r.title().isBlank()) {
                 k.setTitle(r.title().length() > 40 ? r.title().substring(0, 40) : r.title());
             }

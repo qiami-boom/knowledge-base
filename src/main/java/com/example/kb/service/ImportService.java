@@ -58,6 +58,9 @@ public class ImportService {
             ScoreResult result = aiService.scoreKnowledge(knowledge);
             knowledge.setAiScore(result.score());
             knowledge.setSummary(result.summary());
+            if (result.tags() != null && !result.tags().isEmpty()) {
+                knowledge.setTags(String.join(",", result.tags()));
+            }
 
             if (!"UNKNOWN".equals(result.category())) {
                 scoredCount++;   // AI 真的返回了结果（哪怕是 LOGISTICS），才算“成功评分”

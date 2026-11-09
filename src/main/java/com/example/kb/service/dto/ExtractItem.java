@@ -1,5 +1,7 @@
 package com.example.kb.service.dto;
 
+import java.util.List;
+
 /**
  * 接ai返回的单条知识点草稿
  * why / general 用 Boolean,缺字段时是 null，好校验
@@ -9,5 +11,6 @@ package com.example.kb.service.dto;
  * @param why
  * @param general
  */
-public record ExtractItem (String title,String content,String reason,Boolean why,Boolean general,String summary){
+public record ExtractItem(String title, String content, String reason, Boolean why,
+                          Boolean general, String summary, List<String> tags) {
 }

@@ -8,6 +8,6 @@ import java.util.List;
 public record ExtractResult (String batchId, List<Item> items){
 
     /**只传给前端用的上的字段,因为Item只在“抽取结果"的时候有意义,放在嵌套里少建一个文件*/
-    public record Item(Long id, String title, String content, Integer aiScore){
+    public record Item(Long id, String title, String content, Integer aiScore, List<String> tags){
     }
 }

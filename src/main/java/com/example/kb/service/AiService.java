@@ -22,7 +22,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -86,14 +88,17 @@ public class AiService {
 
         //`normalizeCategory` 做两件事：容忍大小写和空格；不认识的分类一律`UNKNOWN`
         String category = normalizeCategory(raw.category());
+        List<String> tags = sanitizeTags(raw.tags());
         if (!"KNOWLEDGE".equals(category)) {
-            return new ScoreResult(category, 1, "", raw.reason(), raw.why(), raw.general(), raw.summary());
+            return new ScoreResult(category, 1, "", raw.reason(), raw.why(), raw.general(),
+                    raw.summary(), List.of());
         }
 
         // 两个是非题映射成分数，不再让模型自己填分
         int score = ScoreResult.scoreOf(raw.why(),raw.general());
 
-        return new ScoreResult(category, score, raw.title(), raw.reason(), raw.why(), raw.general(), raw.summary());
+        return new ScoreResult(category, score, raw.title(), raw.reason(), raw.why(), raw.general(),
+                raw.summary(), tags);
     }
 
     /**
@@ -143,32 +148,33 @@ private String buildPrompt(Knowledge knowledge) {
             判断对象是 AI 的回答；回答里解释了"为什么"，就算用户只说了"写完了"也归 KNOWLEDGE。
             
             - summary：一句话概括这条知识讲了什么，30 字以内，用于检索时快速判断；不要重复 title，非 KNOWLEDGE 给空字符串
+            - tags：KNOWLEDGE 给 1~3 个稳定的概念标签，不要泛化词；非 KNOWLEDGE 给空数组
 
             第三步：KNOWLEDGE 起标题，12-24 字，不要"我""你""下一步"这类对话痕迹；
             非 KNOWLEDGE 时 title 给空字符串。
 
             输出严格 JSON：
-            {"category":"KNOWLEDGE","why":true,"general":false,"title":"文件名与类名不一致导致编译报错","reason":"根因｜公共类须与文件名同名"}
+            {"category":"KNOWLEDGE","why":true,"general":false,"title":"文件名与类名不一致导致编译报错","summary":"Java 公共类须与文件名同名","tags":["Java","类名","编译错误"],"reason":"根因｜公共类须与文件名同名"}
             reason 固定写成"证据类型｜一句话"，证据类型只能从这六个里挑：
             因果链、根因、边界、推导、做法、非知识。
 
             示例：
             1) 用户问队名怎么起，AI 给了起名标准 →
-            {"category":"LOGISTICS","why":false,"general":false,"title":"","summary":"","reason":"非知识｜赛事事务"}
+            {"category":"LOGISTICS","why":false,"general":false,"title":"","summary":"","tags":[],"reason":"非知识｜赛事事务"}
 
             2) 用户问 @Autowired 怎么写，AI 只给了一行用法 →
-            {"category":"KNOWLEDGE","why":false,"general":true,"title":"@Autowired 基本写法","summary":"按类型自动注入，不用手动 new 对象","reason":"做法｜仅给写法"}
+            {"category":"KNOWLEDGE","why":false,"general":true,"title":"@Autowired 基本写法","summary":"按类型自动注入，不用手动 new 对象","tags":["Spring","依赖注入"],"reason":"做法｜仅给写法"}
 
             3) 用户问 RecallQuality 为什么报错，AI 指出文件名与类名不一致并讲了 Java 命名规则 →
-            {"category":"KNOWLEDGE","why":true,"general":false,"title":"文件名与类名不一致导致编译报错","summary":"Java 公共类须与文件名同名","reason":"根因｜公共类须与文件名同名"}
+            {"category":"KNOWLEDGE","why":true,"general":false,"title":"文件名与类名不一致导致编译报错","summary":"Java 公共类须与文件名同名","tags":["Java","类名","编译错误"],"reason":"根因｜公共类须与文件名同名"}
 
             4) 用户问包该按层分还是按功能分，AI 讲了取舍与判断标准 →
-            {"category":"KNOWLEDGE","why":true,"general":true,"title":"layer-first 与 feature-first 分包取舍","summary":"按变更频率决定按层分还是按功能分","reason":"推导｜按变更频率选分包方式"}
+            {"category":"KNOWLEDGE","why":true,"general":true,"title":"layer-first 与 feature-first 分包取舍","summary":"按变更频率决定按层分还是按功能分","tags":["架构设计","分包","开闭原则"],"reason":"推导｜按变更频率选分包方式"}
             5) 用户问 affect 和 effect 怎么区分，AI 讲了词性和常见搭配 →
-            {"category":"KNOWLEDGE","why":true,"general":true,"title":"affect 与 effect 的词性差异","summary":"affect 是动词，effect 是名词","reason":"边界｜按词性区分"}
+            {"category":"KNOWLEDGE","why":true,"general":true,"title":"affect 与 effect 的词性差异","summary":"affect 是动词，effect 是名词","tags":["英语","词性","易混词"],"reason":"边界｜按词性区分"}
 
             6) 用户问洛必达法则什么时候能用，AI 讲了 0/0 型的前提条件 →
-            {"category":"KNOWLEDGE","why":true,"general":true,"title":"洛必达法则的适用前提","summary":"只适用于 0/0 与 ∞/∞ 型极限","reason":"边界｜非此类型不可用"}
+            {"category":"KNOWLEDGE","why":true,"general":true,"title":"洛必达法则的适用前提","summary":"只适用于 0/0 与 ∞/∞ 型极限","tags":["高等数学","极限","洛必达法则"],"reason":"边界｜非此类型不可用"}
 
             现在评估：
             用户提问：%s
@@ -204,6 +210,7 @@ private String cleanJson(String raw) {
      * @return 标签名列表，最多 maxTags 个
      */
     public List<String> generateTags(String content, int maxTags) {
+        int limit = Math.min(maxTags, 3);
         String prompt = """
                 你是标签推荐专家。给下面的笔记内容生成 %d 个最贴切的中文或英文标签。
                 要求：
@@ -214,7 +221,7 @@ private String cleanJson(String raw) {
 
                 笔记内容：
                 %s
-                """.formatted(maxTags, content);
+                """.formatted(limit, content);
         String json = callAI(prompt);
         if (json == null || json.isBlank()) {
             return java.util.List.of();
@@ -231,10 +238,10 @@ private String cleanJson(String raw) {
                 String t = node.asText().trim();
                 if (!t.isEmpty()) {
                     result.add(t);
-                    if (result.size() >= maxTags) break;
+                    if (result.size() >= limit) break;
                 }
             }
-            return result;
+            return sanitizeTags(result);
         } catch (Exception e) {
             log.warn("[AI标签] 解析失败：" + e.getMessage());
             return java.util.List.of();
@@ -489,6 +496,28 @@ private String cleanJson(String raw) {
     }
 
     /**
+     * 标签最多保留 3 个，去掉空值并按不区分大小写去重。
+     */
+    private List<String> sanitizeTags(List<String> rawTags) {
+        if (rawTags == null || rawTags.isEmpty()) {
+            return List.of();
+        }
+
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<String> result = new ArrayList<>();
+        for (String raw : rawTags) {
+            if (raw == null) continue;
+            String tag = raw.trim();
+            if (tag.isBlank()) continue;
+            String key = tag.toLowerCase(Locale.ROOT);
+            if (!seen.add(key)) continue;
+            result.add(tag.length() > 40 ? tag.substring(0, 40) : tag);
+            if (result.size() == 3) break;
+        }
+        return result;
+    }
+
+    /**
      * 判断选择题是否正确
      * @param choiceQuestion
      * @param getUserAnswer
@@ -537,6 +566,7 @@ private String cleanJson(String raw) {
                 - general：它换到另一个项目、另一门学科也成立吗？
                 - reason：证据类型｜一句话，证据类型只能从 因果链/根因/边界/推导/做法/非知识 里挑
                 - summary：一句话概括这条知识点，30 字以内，用于检索时快速判断
+                - tags：1~3 个稳定的概念标签，不要泛化词
                 
                 规则：
                 1. 同一件事只抽一条，不要重复
@@ -544,7 +574,7 @@ private String cleanJson(String raw) {
                 3. 如果这段里没有值得保存的内容，返回 {"items":[]}，不要硬凑
                 
                 输出严格 JSON，不要任何其他文字：
-                {"items":[{"title":"...","content":"...","summary":"...","why":true,"general":false,"reason":"根因｜..."}]}
+                {"items":[{"title":"...","content":"...","summary":"...","tags":["标签1","标签2"],"why":true,"general":false,"reason":"根因｜..."}]}
                 
                 文本：
                 %s
@@ -575,7 +605,15 @@ private String cleanJson(String raw) {
                 if(e.why() == null || e.general() == null){
                     continue;
                 }
-                result.add(e);
+                result.add(new ExtractItem(
+                        e.title(),
+                        e.content(),
+                        e.reason(),
+                        e.why(),
+                        e.general(),
+                        e.summary(),
+                        sanitizeTags(e.tags())
+                ));
             }
             return result;
 

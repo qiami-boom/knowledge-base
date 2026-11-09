@@ -536,6 +536,9 @@ const extractUrl = async (url) => {
               <span class="draft-star">{{ d.aiScore }} 星</span>
             </div>
             <div class="draft-content">{{ d.content }}</div>
+            <div v-if="d.tags && d.tags.length" class="draft-tags">
+              <span v-for="tag in d.tags" :key="tag">{{ tag }}</span>
+            </div>
 
             <div v-if="d.state === 'pending'" class="draft-actions">
               <button class="btn-primary" type="button" @click="confirm(d)">入库</button>
@@ -877,6 +880,21 @@ const extractUrl = async (url) => {
   word-break: break-word;
   max-height: 160px;
   overflow-y: auto;
+}
+
+.draft-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.draft-tags span {
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--color-primary-soft);
+  color: #3562c8;
+  font-size: 9px;
 }
 .draft-actions {
   margin-top: 10px;

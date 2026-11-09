@@ -32,21 +32,29 @@ public class TagServerimpl implements TagServer {
     @Override
     @Transactional
     public List<String> tag(String content, Long knowledgeId) {
-        // 1. AI 生成候选标签
-        List<String> aiTags = aiService.generateTags(content, 5);
-        if (aiTags.isEmpty()) {
+        return persistTags(aiService.generateTags(content, 3), knowledgeId);
+    }
+
+    @Override
+    @Transactional
+    public List<String> linkTags(List<String> tags, Long knowledgeId) {
+        return persistTags(tags, knowledgeId);
+    }
+
+    private List<String> persistTags(List<String> tags, Long knowledgeId) {
+        if (tags == null || tags.isEmpty()) {
             return List.of();
         }
 
         Set<String> seen = new LinkedHashSet<>();
         List<String> assignedNames = new java.util.ArrayList<>();
 
-        // 2. 先清理旧关系，再按本次 AI 结果重建
+        // 先清理旧关系，再按本次结果重建
         tagMapper.deleteLinksByKnowledgeId(knowledgeId);
-        for (String aiTag : aiTags) {
-            if (aiTag == null || aiTag.isBlank()) continue;
+        for (String rawTag : tags) {
+            if (rawTag == null || rawTag.isBlank()) continue;
 
-            String displayName = aiTag.trim();
+            String displayName = rawTag.trim();
             String norm = TagNormalizer.normalize(displayName);
             if (norm.isEmpty() || !seen.add(norm)) continue;
 
@@ -70,6 +78,7 @@ public class TagServerimpl implements TagServer {
             // 记录 笔记↔标签 关联
             tagMapper.link(knowledgeId, tag.getId());
             assignedNames.add(tag.getName());
+            if (assignedNames.size() == 3) break;
         }
 
         // usage_count 统一按关系表重算，避免复用和重生成时计数漂移

@@ -14,4 +14,7 @@ public interface TagServer {
      * @return
      */
     List<String> tag (String content,Long knowledgeId);
+
+    /** 标签已由上游 AI 生成时，只负责复用/建标签并写关系，不再调用 AI */
+    List<String> linkTags(List<String> tags, Long knowledgeId);
 }

@@ -14,7 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 知识库业务层。
@@ -67,7 +69,7 @@ public class KnowledgeService {
                 //来源判空或无来源字段设置为MANUAL，无问题就设置正确来源
         );
         knowledge.setCategory(request.category());
-        knowledge.setTags(request.tags());
+        knowledge.setTags(normalizeTagString(request.tags()));
         knowledge.setStarRating(request.starRating() == null ? 0 : request.starRating());
         knowledge.setPersonalNote(request.personalNote());
         knowledge.setAiScore(0);
@@ -103,7 +105,7 @@ public class KnowledgeService {
         existing.setContent(request.content());
         existing.setSource(request.source());
         existing.setCategory(request.category());
-        existing.setTags(request.tags());
+        existing.setTags(normalizeTagString(request.tags()));
         existing.setStarRating(
                 request.starRating() == null ? 0 : request.starRating()
         );
@@ -175,7 +177,7 @@ public class KnowledgeService {
             existing.setCategory(trimToNull(edit.category(), 50));
         }
         if (edit.tags() != null && !edit.tags().isBlank()) {
-            existing.setTags(trimToNull(edit.tags(), 500));
+            existing.setTags(normalizeTagString(edit.tags()));
         }
         existing.setUpdatedAt(LocalDateTime.now());
 
@@ -281,11 +283,13 @@ public class KnowledgeService {
     }
 
     private void applyAiTagsIfEmpty(Knowledge knowledge) {
-        if (knowledge.getTags() != null && !knowledge.getTags().isBlank()) {
-            return;
-        }
         try {
-            List<String> tags = tagServer.tag(tagContent(knowledge), knowledge.getId());
+            List<String> tags;
+            if (knowledge.getTags() != null && !knowledge.getTags().isBlank()) {
+                tags = tagServer.linkTags(parseTags(knowledge.getTags()), knowledge.getId());
+            } else {
+                tags = tagServer.tag(tagContent(knowledge), knowledge.getId());
+            }
             if (!tags.isEmpty()) {
                 knowledge.setTags(String.join(",", tags));
                 knowledge.setUpdatedAt(LocalDateTime.now());
@@ -302,6 +306,28 @@ public class KnowledgeService {
         String content = knowledge.getContent() == null ? "" : knowledge.getContent();
         String summary = knowledge.getSummary() == null ? "" : knowledge.getSummary();
         return (title + "\n" + summary + "\n" + content).trim();
+    }
+
+    private String normalizeTagString(String rawTags) {
+        return String.join(",", parseTags(rawTags));
+    }
+
+    private List<String> parseTags(String rawTags) {
+        if (rawTags == null || rawTags.isBlank()) {
+            return List.of();
+        }
+        List<String> tags = new ArrayList<>();
+        List<String> seen = new ArrayList<>();
+        for (String part : rawTags.split(",")) {
+            String tag = part.trim();
+            if (tag.isBlank()) continue;
+            String key = tag.toLowerCase(Locale.ROOT);
+            if (seen.contains(key)) continue;
+            seen.add(key);
+            tags.add(tag.length() > 40 ? tag.substring(0, 40) : tag);
+            if (tags.size() == 3) break;
+        }
+        return tags;
     }
 
 }
